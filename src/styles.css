@@ -493,7 +493,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 /* ---------- narrow screens ---------- */
 @media (max-width: 960px) {
   /* one column: field, then the moves, then coach / hints / log */
-  .battle { display: flex; flex-direction: column; gap: 12px; }
+  .battle { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
   .battle-main, .battle-side { display: contents; }
   .retry-banner { order: 0; }
   .stage-wrap { order: 1; }
