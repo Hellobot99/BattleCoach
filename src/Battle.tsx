@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Field } from './Field';
 import { InfoSheet } from './InfoSheet';
+import { TypeCalc } from './TypeCalc';
 import { usePlayback } from './playback';
 import { sound } from './sound';
 import type { Choice, GameState, Review } from './types';
@@ -269,6 +270,10 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated, onBackToRevi
             )}
           </section>
         )}
+        <TypeCalc
+          foeTypes={foe ? (foe.terastallized ? [foe.terastallized] : foe.types) : null}
+          myTypes={me ? (me.terastallized ? [me.terastallized] : me.types) : null}
+        />
       </aside>
       {inspect && (inspect === 'p1' ? me : foe?.details ? foe : null) && (
         <InfoSheet mon={(inspect === 'p1' ? me : foe)!} side={inspect} onClose={() => setInspect(null)} />
