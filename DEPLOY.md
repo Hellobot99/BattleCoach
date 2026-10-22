@@ -33,11 +33,14 @@ sudo dnf install -y docker git
 sudo systemctl enable --now docker
 sudo usermod -aG docker ec2-user
 
-# docker compose 플러그인
+# docker compose · buildx 플러그인 (Amazon Linux의 Docker 패키지에는 빠져 있어요)
+# t3 등 x86 인스턴스 기준. Arm(t4g)이면 x86_64 → aarch64, amd64 → arm64 로 바꿔요.
 sudo mkdir -p /usr/local/lib/docker/cli-plugins
-sudo curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+sudo curl -fsSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
   -o /usr/local/lib/docker/cli-plugins/docker-compose
-sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+sudo curl -fsSL https://github.com/docker/buildx/releases/download/v0.38.1/buildx-v0.38.1.linux-amd64 \
+  -o /usr/local/lib/docker/cli-plugins/docker-buildx
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/lib/docker/cli-plugins/docker-buildx
 
 # 메모리 여유용 스왑 2GB (2GB 인스턴스에서 이미지 빌드할 때도 도움이 돼요)
 sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
@@ -54,7 +57,8 @@ ssh -i battle-coach.pem ec2-user@<퍼블릭 IP>
 git clone https://github.com/Hellobot99/BattleCoach.git
 cd BattleCoach
 cp .env.example .env
-nano .env          # SITE_ADDRESS 등 수정 (아래 참고)
+# 도메인 없이 HTTPS: <퍼블릭 IP>.sslip.io (아래 「주소와 HTTPS」 참고)
+sed -i 's/^SITE_ADDRESS=.*/SITE_ADDRESS=<퍼블릭 IP>.sslip.io/' .env
 docker compose up -d --build
 ```
 
