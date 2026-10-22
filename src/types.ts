@@ -106,6 +106,8 @@ export interface Review {
   luck?: string;
   hinted: boolean;
   timeout: boolean;
+  retryable?: boolean;
+  bestChoice?: string;
 }
 
 export type Decision =
@@ -140,6 +142,8 @@ export interface GameState {
   log: LogEntry[];
   reviews: Review[];
   summary: Summary | null;
+  /** set when this game is a 「다시 해 보기」 of turn `index` of game `fromId` */
+  retry: { fromId: string; index: number; original: Review } | null;
 }
 
 export type Side = 'p1' | 'p2';

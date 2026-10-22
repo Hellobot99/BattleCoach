@@ -15,6 +15,8 @@ export function App() {
   const waiting = useRef<string | null>(null);
   // how much of each game's log the field has finished animating (the review waits for the last turn)
   const [animated, setAnimated] = useState<{ id: string; len: number }>({ id: '', len: 0 });
+  // the finished game a 「다시 해 보기」 came from, to return to its review
+  const [returnTo, setReturnTo] = useState<GameState | null>(null);
 
   const run = useCallback(async (fn: () => Promise<GameState>) => {
     setBusy(true);
@@ -47,7 +49,20 @@ export function App() {
   };
   const leave = () => {
     sound.stopMusic();
+    setReturnTo(null);
     setState(null);
+  };
+  const retry = (from: GameState, index: number) => {
+    sound.startMusic();
+    if (!from.retry) setReturnTo(from);
+    run(() => api.retry(from.retry ? from.retry.fromId : from.id, from.retry ? from.retry.index : index));
+  };
+  const backToReview = () => {
+    if (!returnTo) return;
+    sound.stopMusic();
+    setAnimated({ id: returnTo.id, len: returnTo.log.length });
+    setState(returnTo);
+    setReturnTo(null);
   };
   const reviewing = !!state?.ended && animated.id === state.id && animated.len >= state.log.length;
   useEffect(() => {
@@ -65,7 +80,15 @@ export function App() {
   const id = state.id;
   let body;
   if (reviewing) {
-    body = <ReviewScreen state={state} onAgain={() => opts && start(opts)} onLobby={leave} />;
+    body = (
+      <ReviewScreen
+        state={state}
+        onAgain={() => opts && start(opts)}
+        onLobby={leave}
+        onRetry={index => retry(state, index)}
+        onBackToOriginal={returnTo ? backToReview : undefined}
+      />
+    );
   } else if (state.decision?.kind === 'preview') {
     body = <Preview state={state} busy={busy} onChoose={c => run(() => api.choose(id, c))} />;
   } else {
@@ -76,6 +99,8 @@ export function App() {
         onChoose={(c, timeout) => run(() => api.choose(id, c, timeout))}
         onHint={() => run(async () => (await api.hint(id)).state)}
         onAnimated={(gameId, len) => setAnimated({ id: gameId, len })}
+        onBackToReview={returnTo ? backToReview : undefined}
+        onRetryAgain={state.retry ? () => retry(state, state.retry!.index) : undefined}
       />
     );
   }

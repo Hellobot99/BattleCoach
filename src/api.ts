@@ -16,6 +16,7 @@ export const api = {
   get: (id: string, waitEval = false) => call<GameState>(`/games/${id}${waitEval ? '?wait=eval' : ''}`),
   choose: (id: string, choice: string, timeout = false) =>
     call<GameState>(`/games/${id}/choose`, { method: 'POST', body: JSON.stringify({ choice, timeout }) }),
+  retry: (id: string, index: number) => call<GameState>(`/games/${id}/retry`, { method: 'POST', body: JSON.stringify({ index }) }),
   hint: (id: string) =>
     call<{ hint: { level: number; text: string }; state: GameState }>(`/games/${id}/hint`, { method: 'POST' }),
 };

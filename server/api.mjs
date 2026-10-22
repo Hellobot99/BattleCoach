@@ -1,5 +1,5 @@
 // JSON API mounted on the Vite dev server (`npm run dev`), so the page and the simulator run from one command.
-import { createGame, getGame } from './game.mjs';
+import { createGame, getGame, retryGame } from './game.mjs';
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -42,6 +42,10 @@ async function handle(req, res) {
     const body = await readBody(req);
     await game.choose(String(body.choice || ''), { timeout: !!body.timeout });
     return send(res, 200, game.state());
+  }
+  if (parts[2] === 'retry' && req.method === 'POST') {
+    const body = await readBody(req);
+    return send(res, 200, retryGame(game.id, body.index).state());
   }
   if (parts[2] === 'hint' && req.method === 'POST') {
     const hint = await game.hint();

@@ -25,6 +25,18 @@ export function getGame(id) {
   return games.get(id);
 }
 
+/** A new game that starts again from turn `index` of a finished one (S04 §4). */
+export function retryGame(id, index) {
+  const orig = games.get(id);
+  if (!orig) throw new Error('배틀을 찾을 수 없어요.');
+  const g = Game.restore(orig, Number(index));
+  games.set(g.id, g);
+  if (games.size > 50) games.delete(games.keys().next().value);
+  return g;
+}
+
+const cloneSeen = seen => new Map([...seen].map(([k, v]) => [k, { ...v, moves: new Set(v.moves) }]));
+
 class Game {
   constructor({ format = '3v3', ai = 2, coaching = 'beginner', timer = false }) {
     if (!FORMATS[format]) throw new Error('unknown format');
@@ -40,6 +52,9 @@ class Game {
     this.log = [];
     this.foeSeen = new Map(); // name -> {moves:Set, item, ability}
     this.reviews = [];
+    this.snapshots = []; // per review: the position before it, for 「다시 해 보기」
+    this.retry = null;
+    this.forcedAi = null;
     this.decision = null;
     this.lastEval = null;
     // 3v3: the opponent's six shown at team preview are all the player knows about its team
@@ -56,12 +71,52 @@ class Game {
     const req = side.activeRequest;
     if (!req || req.wait || side.isChoiceDone() || b.ended) return;
     let choice = 'default';
-    try {
-      choice = aiChoose(b, 'p2', Math.random, { level: this.ai, noise: this.ai === 1 ? 0 : 0.04 }) || 'default';
-    } catch (err) {
-      console.error('[ai]', err);
+    if (this.forcedAi) {
+      // a retry replays the opponent's original action for that turn
+      choice = this.forcedAi;
+      this.forcedAi = null;
+    } else {
+      try {
+        choice = aiChoose(b, 'p2', Math.random, { level: this.ai, noise: this.ai === 1 ? 0 : 0.04 }) || 'default';
+      } catch (err) {
+        console.error('[ai]', err);
+      }
     }
-    if (!b.choose('p2', choice)) b.choose('p2', 'default');
+    if (!b.choose('p2', choice)) {
+      b.choose('p2', 'default');
+      return 'default';
+    }
+    return choice;
+  }
+
+  /** Rebuilds the position saved before review `index`, with the same dice and the opponent's same action. */
+  static restore(orig, index) {
+    const snap = orig.snapshots[index];
+    if (!snap) throw new Error('이 턴은 다시 해 볼 수 없어요.');
+    const g = Object.create(Game.prototype);
+    Object.assign(g, {
+      id: randomUUID(),
+      format: orig.format,
+      ai: orig.ai,
+      coaching: orig.coaching,
+      timer: orig.timer,
+      battle: Battle.fromJSON(snap.json),
+      log: orig.log.slice(0, snap.logLen),
+      foeSeen: cloneSeen(snap.foeSeen),
+      reviews: orig.reviews.slice(0, index),
+      snapshots: orig.snapshots.slice(0, index),
+      forcedAi: snap.aiChoice,
+      lastEval: { bestW: Math.max(...Object.values(snap.ev.actions).map(a => a.W)), ms: snap.ev.ms, rollouts: snap.ev.rollouts },
+      foePreview: orig.foePreview,
+      retry: { fromId: orig.id, index, original: orig.reviews[index] },
+    });
+    g.battle.send = () => {};
+    g.logCursor = g.battle.log.length;
+    g.decision = {
+      kind: snap.kind, turn: snap.turn, choices: snap.choices, ev: snap.ev, evalPromise: Promise.resolve(snap.ev),
+      naive: snap.naive, hintLevel: 0, hinted: false, json: snap.json, logLen: snap.logLen, foeSeen: snap.foeSeen, lastEvalBefore: snap.lastEval,
+    };
+    return g;
   }
 
   prepareDecision() {
@@ -91,6 +146,7 @@ class Game {
     }
     if (choices.length >= 2) {
       const json = JSON.stringify(b.toJSON());
+      Object.assign(d, { json, logLen: this.log.length, foeSeen: cloneSeen(this.foeSeen), lastEvalBefore: this.lastEval });
       d.evalPromise = evaluate(json, 'p1', choices.map(c => c.choice), this.hiddenInfo()).then(ev => {
         d.ev = ev;
         this.lastEval = { bestW: Math.max(...Object.values(ev.actions).map(a => a.W)), ms: ev.ms, rollouts: ev.rollouts };
@@ -156,7 +212,7 @@ class Game {
       review.headline = '시간이 다 되어 맨 위 행동을 자동으로 골랐어요.';
     }
 
-    this.aiAct();
+    const aiChoice = this.aiAct();
     const logStart = this.battle.log.length;
     if (!b.choose('p1', choice)) throw new Error('이 행동은 지금 쓸 수 없어요.');
     const turnLines = this.battle.log.slice(logStart);
@@ -168,6 +224,13 @@ class Game {
     review.gradeLabel = GRADES[review.grade].label;
     review.gradeSym = GRADES[review.grade].sym;
     this.reviews.push(review);
+    if (d.json && d.ev) {
+      this.snapshots[this.reviews.length - 1] = {
+        json: d.json, logLen: d.logLen, foeSeen: d.foeSeen, lastEval: d.lastEvalBefore, ev: d.ev,
+        choices: d.choices, naive: d.naive, kind: d.kind, turn: d.turn, aiChoice: aiChoice || null,
+      };
+      review.retryable = ['inacc', 'mist', 'blund'].includes(review.grade);
+    }
     this.consumeLog();
     this.prepareDecision();
   }
@@ -372,6 +435,7 @@ class Game {
       log: this.log,
       reviews: this.reviews,
       summary: b.ended ? summarize(this.reviews) : null,
+      retry: this.retry,
     };
     return out;
   }

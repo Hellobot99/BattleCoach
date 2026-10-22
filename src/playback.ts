@@ -179,9 +179,10 @@ export function usePlayback(
     };
 
     if (played.current.id !== state.id) {
-      played.current = { id: state.id, len: 0 };
+      // a retry starts mid-battle: show its position as is and only animate what happens from here
+      played.current = { id: state.id, len: state.retry ? state.log.length : 0 };
       queue.current = [];
-      working.current = { p1: null, p2: null, message: '', fx: null };
+      working.current = state.retry ? frameFromState(state) : { p1: null, p2: null, message: '', fx: null };
     }
     const entries = state.log.slice(played.current.len);
     played.current.len = state.log.length;

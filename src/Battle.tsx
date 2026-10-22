@@ -34,15 +34,18 @@ interface Props {
   onChoose: (choice: string, timeout?: boolean) => void;
   onHint: () => void;
   onAnimated: (gameId: string, logLength: number) => void;
+  onBackToReview?: () => void;
+  onRetryAgain?: () => void;
 }
 
-export function Battle({ state, busy, onChoose, onHint, onAnimated }: Props) {
+export function Battle({ state, busy, onChoose, onHint, onAnimated, onBackToReview, onRetryAgain }: Props) {
   const beginner = state.coaching === 'beginner';
   const showCoach = state.coaching !== 'review';
   const [showEff, setShowEff] = useStoredFlag(EFF_KEY, beginner);
   const [fast, setFast] = useStoredFlag(SPEED_KEY, false);
   const [gimmick, setGimmick] = useState(false);
   const [inspect, setInspect] = useState<'p1' | 'p2' | null>(null);
+  const [retryDismissed, setRetryDismissed] = useState(false);
 
   // what the player has already seen: the coach card and win bar wait until the turn has played out
   const [seenReviews, setSeenReviews] = useState(0);
@@ -111,6 +114,16 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated }: Props) {
 
   return (
     <div className="battle">
+      {state.retry && !retryDismissed && (
+        <RetryBanner
+          state={state}
+          playing={playing}
+          seenReviews={seenReviews}
+          onBack={onBackToReview}
+          onAgain={onRetryAgain}
+          onContinue={() => setRetryDismissed(true)}
+        />
+      )}
       <div className="battle-main">
         <div className="stage-wrap">
           <Field frame={frame} state={state} prompt={prompt} playing={playing} onInspect={setInspect} />
@@ -249,6 +262,57 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated }: Props) {
         <InfoSheet mon={(inspect === 'p1' ? me : foe)!} side={inspect} onClose={() => setInspect(null)} />
       )}
     </div>
+  );
+}
+
+/** 「다시 해 보기」: what was played originally, then how the new choice compares. */
+function RetryBanner({ state, playing, seenReviews, onBack, onAgain, onContinue }: {
+  state: GameState; playing: boolean; seenReviews: number; onBack?: () => void; onAgain?: () => void; onContinue: () => void;
+}) {
+  const r = state.retry!;
+  const now = !playing && seenReviews > r.index ? state.reviews[r.index] : null;
+  const o = r.original;
+  const better = now && now.dW < o.dW;
+  return (
+    <section className={`retry-banner${now ? (better ? ' better' : ' same') : ''}`} aria-live="polite">
+      <div className="rb-text">
+        <span className="eyebrow">다시 해 보기 · {o.turn}턴</span>
+        {now ? (
+          <p className="rb-compare">
+            <span>
+              원래 <b>{o.choiceLabel}</b> <GradeChip grade={o.grade} sym={o.gradeSym} label={o.gradeLabel} />
+            </span>
+            <span className="rb-arrow" aria-hidden="true">→</span>
+            <span>
+              이번 <b>{now.choiceLabel}</b> <GradeChip grade={now.grade} sym={now.gradeSym} label={now.gradeLabel} />
+            </span>
+          </p>
+        ) : (
+          <p>
+            원래 고른 수 <b>{o.choiceLabel}</b> <GradeChip grade={o.grade} sym={o.gradeSym} label={o.gradeLabel} /> · 다른 수를 골라 보세요. 상대의 행동과 난수는
+            원래 판과 같아요.
+          </p>
+        )}
+        {now && <p className="small muted">{better ? '찾았어요! 아래 코치 설명에서 이유를 확인해 보세요.' : '이번에도 더 좋은 수가 있었어요. 한 번 더 해 볼까요?'}</p>}
+      </div>
+      <div className="rb-actions">
+        {now && onAgain && (
+          <button className="ghost" onClick={onAgain}>
+            다른 수로 다시
+          </button>
+        )}
+        {onBack && (
+          <button className="primary" onClick={onBack}>
+            리뷰로 돌아가기
+          </button>
+        )}
+        {now && (
+          <button className="link" onClick={onContinue}>
+            여기서 이어서 하기
+          </button>
+        )}
+      </div>
+    </section>
   );
 }
 

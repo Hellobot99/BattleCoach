@@ -14,7 +14,13 @@ const ORDER: { key: GradeKey; label: string; sym: string }[] = [
   { key: 'blund', label: '블런더', sym: '??' },
 ];
 
-export function ReviewScreen({ state, onAgain, onLobby }: { state: GameState; onAgain: () => void; onLobby: () => void }) {
+export function ReviewScreen({ state, onAgain, onLobby, onRetry, onBackToOriginal }: {
+  state: GameState;
+  onAgain: () => void;
+  onLobby: () => void;
+  onRetry: (index: number) => void;
+  onBackToOriginal?: () => void;
+}) {
   const s = state.summary;
   const reviews = state.reviews;
   const turningIdx = new Set(s?.turning.map(t => t.index));
@@ -75,7 +81,14 @@ export function ReviewScreen({ state, onAgain, onLobby }: { state: GameState; on
 
       {sel !== null && reviews[sel] && (
         <section className="panel">
-          <h3>선택한 턴</h3>
+          <div className="panel-head">
+            <h3>선택한 턴</h3>
+            {reviews[sel].retryable && (
+              <button className="primary" onClick={() => onRetry(sel)}>
+                이 턴 다시 해 보기
+              </button>
+            )}
+          </div>
           <CoachCard r={reviews[sel]} />
         </section>
       )}
@@ -90,6 +103,7 @@ export function ReviewScreen({ state, onAgain, onLobby }: { state: GameState; on
                 <GradeChip grade={r.grade} sym={r.gradeSym} label={r.gradeLabel} compact />
                 <span className="tl-act">{r.choiceLabel}</span>
                 <span className="tl-reason muted">{r.reason || r.headline}</span>
+                {r.retryable && <span className="tl-retry" title="다시 해 볼 수 있어요">↺</span>}
               </button>
             </li>
           ))}
@@ -97,6 +111,11 @@ export function ReviewScreen({ state, onAgain, onLobby }: { state: GameState; on
       </section>
 
       <div className="review-actions">
+        {onBackToOriginal && (
+          <button className="ghost" onClick={onBackToOriginal}>
+            원래 판 리뷰로
+          </button>
+        )}
         <button className="primary" onClick={onAgain}>
           같은 설정으로 다시
         </button>

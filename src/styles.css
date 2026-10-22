@@ -565,3 +565,17 @@ button.hud-top:focus-visible { outline: 2px solid var(--accent); outline-offset:
   .sheet { border-radius: 20px 20px 0 0; max-height: 88vh; padding-bottom: env(safe-area-inset-bottom, 0px); }
   .odds-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- 다시 해 보기 ---------- */
+.retry-banner { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px 18px; flex-wrap: wrap; background: linear-gradient(100deg, var(--accent-soft), var(--paper) 70%); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 16px; padding: 14px 18px; box-shadow: var(--shadow); }
+.retry-banner.better { background: linear-gradient(100deg, color-mix(in srgb, var(--g-best) 16%, var(--paper)), var(--paper) 70%); border-color: color-mix(in srgb, var(--g-best) 45%, var(--line)); }
+.rb-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rb-text .eyebrow { margin: 0; }
+.rb-text p { font-size: 14.5px; }
+.rb-compare { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.rb-compare > span { display: inline-flex; align-items: center; gap: 6px; }
+.rb-arrow { font-size: 20px; color: var(--muted); }
+.rb-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tl-retry { color: var(--accent); font-weight: 700; }
+.tl-row { grid-template-columns: 52px 28px minmax(0, 16ch) minmax(0, 1fr) 16px; }
+@media (max-width: 600px) { .tl-row { grid-template-columns: 44px 28px minmax(0, 1fr) 16px; } }
