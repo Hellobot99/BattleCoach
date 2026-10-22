@@ -21,12 +21,21 @@ export function Preview({ state, onChoose, busy }: { state: GameState; onChoose:
     <div className="pick">
       <header className="pick-head">
         <p className="eyebrow">팀 선출</p>
-        <h2 className="screen-title">상대 6마리를 보고, 싸울 {size}마리를 고르세요</h2>
-        <p className="muted">처음 고른 포켓몬이 선봉으로 나가요. 상대도 지금 {size}마리를 골랐어요.</p>
+        {state.me.team.length > size ? (
+          <>
+            <h2 className="screen-title">상대 {state.foe.team.length}마리를 보고, 싸울 {size}마리를 고르세요</h2>
+            <p className="muted">처음 고른 포켓몬이 선봉으로 나가요. 상대도 지금 {size}마리를 골랐어요.</p>
+          </>
+        ) : (
+          <>
+            <h2 className="screen-title">상대 팀을 보고, 나갈 순서를 정하세요</h2>
+            <p className="muted">{state.story ? `${state.story.title} · ${state.story.goal}` : '처음 고른 포켓몬이 선봉으로 나가요.'}</p>
+          </>
+        )}
       </header>
 
-      <section className="foe-strip" aria-label="상대 6마리">
-        <span className="strip-label">상대 팀 · 이 중 {size}마리가 나와요</span>
+      <section className="foe-strip" aria-label="상대 팀">
+        <span className="strip-label">{state.foe.team.length > size ? `상대 팀 · 이 중 ${size}마리가 나와요` : '상대 팀'}</span>
         <div className="foe-row">
           {state.foe.team.map(m => (
             <div key={m.name} className="foe-chip">
@@ -41,7 +50,7 @@ export function Preview({ state, onChoose, busy }: { state: GameState; onChoose:
       </section>
 
       <div className="pick-body">
-        <section className="my-grid" aria-label="내 6마리">
+        <section className="my-grid" aria-label="내 팀">
           {state.me.team.map((m, i) => {
             const slot = i + 1;
             const order = picks.indexOf(slot);
@@ -75,7 +84,7 @@ export function Preview({ state, onChoose, busy }: { state: GameState; onChoose:
                   <span className="pc-matchup">
                     <span className="mu good">유리 {mu.good}</span>
                     <span className="mu bad">불리 {mu.bad}</span>
-                    <span className="muted">상대 6마리 기준</span>
+                    <span className="muted">상대 팀 기준</span>
                   </span>
                 )}
               </button>
@@ -126,7 +135,7 @@ export function Preview({ state, onChoose, busy }: { state: GameState; onChoose:
                 </button>
               )}
             </div>
-            {!showRec && <p className="muted small">먼저 혼자 골라 보세요. 켜면 추천 3마리와 카드마다 상대 6마리 기준 유리 · 불리 수가 나와요.</p>}
+            {!showRec && <p className="muted small">먼저 혼자 골라 보세요. 켜면 추천과 카드마다 상대 팀 기준 유리 · 불리 수가 나와요.</p>}
             {showRec && <div className="coach-card">
               <div className="coach-face" aria-hidden="true">코</div>
               <div className="coach-body">

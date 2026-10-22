@@ -6,6 +6,7 @@ import { evaluate } from './evaluator.mjs';
 import { setStats, fits } from './determinize.mjs';
 import { gradeTurn, hintFor, summarize, GRADES } from './coach.mjs';
 import { eun, eul, iga } from './korean.mjs';
+import { STORY_FORMAT, storyStage, storyTeams } from './story.mjs';
 import { koMove, koItem, koAbility, koSpecies, koType, moveDesc, abilityDesc, itemDesc, TYPE_KO } from './names.mjs';
 
 const STATUS = { brn: '화상', par: '마비', slp: '잠듦', psn: '독', tox: '맹독', frz: '얼음' };
@@ -38,16 +39,35 @@ export function retryGame(id, index) {
 const cloneSeen = seen => new Map([...seen].map(([k, v]) => [k, { ...v, moves: new Set(v.moves) }]));
 
 class Game {
-  constructor({ format = '3v3', ai = 2, coaching = 'beginner', timer = false }) {
-    if (!FORMATS[format]) throw new Error('unknown format');
+  constructor({ format = '3v3', ai = 2, coaching = 'beginner', timer = false, story = null }) {
     this.id = randomUUID();
+    this.story = null;
+    this.hintLimit = null;
+    this.hintsUsed = 0;
+    let teams = null;
+    let formatid;
+    if (story) {
+      // story mode: the stage fixes both teams, the AI level and how much help the player gets
+      const stage = storyStage(story);
+      teams = storyTeams(stage);
+      format = '3v3';
+      formatid = STORY_FORMAT;
+      ai = stage.ai;
+      coaching = stage.coaching;
+      timer = stage.timer;
+      this.hintLimit = stage.hintLimit;
+      this.story = { id: stage.id, no: stage.no, next: stage.next, title: stage.title, trainer: stage.trainer, lesson: stage.lesson, goal: stage.goal, hintLimit: stage.hintLimit };
+    } else {
+      if (!FORMATS[format]) throw new Error('unknown format');
+      formatid = FORMATS[format].id;
+    }
     this.format = format;
-    this.ai = Number(ai) === 1 ? 1 : 2;
+    this.ai = [1, 2, 3].includes(Number(ai)) ? Number(ai) : 2;
     this.coaching = coaching;
     this.timer = !!timer;
-    this.battle = new Battle({ formatid: FORMATS[format].id });
-    this.battle.setPlayer('p1', { name: '나' });
-    this.battle.setPlayer('p2', { name: 'AI' });
+    this.battle = new Battle({ formatid });
+    this.battle.setPlayer('p1', { name: '나', ...(teams ? { team: teams.me } : {}) });
+    this.battle.setPlayer('p2', { name: 'AI', ...(teams ? { team: teams.foe } : {}) });
     this.logCursor = 0;
     this.log = [];
     this.foeSeen = new Map(); // name -> {moves:Set, item, ability}
@@ -108,6 +128,9 @@ class Game {
       forcedAi: snap.aiChoice,
       lastEval: { bestW: Math.max(...Object.values(snap.ev.actions).map(a => a.W)), ms: snap.ev.ms, rollouts: snap.ev.rollouts },
       foePreview: orig.foePreview,
+      story: orig.story,
+      hintLimit: orig.hintLimit,
+      hintsUsed: orig.hintsUsed,
       retry: { fromId: orig.id, index, original: orig.reviews[index] },
     });
     g.battle.send = () => {};
@@ -143,6 +166,20 @@ class Game {
       d.naive = aiChoose(b, 'p1', Math.random, { level: 1 });
     } catch {
       d.naive = null;
+    }
+    const p2req = b.p2.activeRequest;
+    if (this.ai === 3 && p2req && !p2req.wait && !p2req.teamPreview) {
+      const foeChoices = legalChoices(p2req, b, 'p2').map(c => c.choice);
+      if (foeChoices.length >= 2) {
+        // level 3: the opponent weighs its own options with rollouts and takes one of the best
+        d.aiPlan = evaluate(JSON.stringify(b.toJSON()), 'p2', foeChoices)
+          .then(ev => {
+            const ranked = Object.entries(ev.actions).sort((x, y) => y[1].W - x[1].W);
+            const close = ranked.filter(([, a]) => a.W >= ranked[0][1].W - 0.02);
+            return close[Math.floor(Math.random() * close.length)][0];
+          })
+          .catch(() => null);
+      }
     }
     if (choices.length >= 2) {
       const json = JSON.stringify(b.toJSON());
@@ -212,6 +249,7 @@ class Game {
       review.headline = '시간이 다 되어 맨 위 행동을 자동으로 골랐어요.';
     }
 
+    if (d.aiPlan && !this.forcedAi) this.forcedAi = await d.aiPlan;
     const aiChoice = this.aiAct();
     const logStart = this.battle.log.length;
     if (!b.choose('p1', choice)) throw new Error('이 행동은 지금 쓸 수 없어요.');
@@ -238,6 +276,8 @@ class Game {
   async hint() {
     const d = this.decision;
     if (!d || d.kind === 'preview' || !d.evalPromise) return { level: 0, text: '지금은 힌트가 필요 없는 턴이에요.' };
+    if (this.hintLimit !== null && this.hintsUsed >= this.hintLimit) return { level: d.hintLevel, text: `이 스테이지의 힌트 ${this.hintLimit}번을 다 썼어요.` };
+    this.hintsUsed++;
     const ev = await d.evalPromise;
     d.hintLevel = Math.min(3, d.hintLevel + 1);
     d.hinted = true;
@@ -415,7 +455,7 @@ class Game {
     const out = {
       id: this.id,
       format: this.format,
-      formatLabel: FORMATS[this.format].label,
+      formatLabel: this.story ? `퍼즐 · ${this.story.title}` : FORMATS[this.format].label,
       ai: this.ai,
       coaching: this.coaching,
       timer: this.timer,
@@ -436,6 +476,8 @@ class Game {
       reviews: this.reviews,
       summary: b.ended ? summarize(this.reviews) : null,
       retry: this.retry,
+      story: this.story,
+      hintsLeft: this.hintLimit === null ? null : Math.max(0, this.hintLimit - this.hintsUsed),
     };
     return out;
   }
@@ -457,7 +499,7 @@ class Game {
     });
     const lines = slots.map(slot => {
       const { good, bad } = matchups[slot - 1];
-      return `${koSpecies(b.p1.pokemon[slot - 1].species.name)}: 상대 6마리 중 ${good}마리에게 유리, ${bad}마리에게 불리`;
+      return `${koSpecies(b.p1.pokemon[slot - 1].species.name)}: 상대 ${b.p2.pokemon.length}마리 중 ${good}마리에게 유리, ${bad}마리에게 불리`;
     });
     return { slots, lines, matchups };
   }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FieldSprite } from './Field';
+import { Story } from './Story';
 import type { Coaching, Format, GradeKey } from './types';
 import { GradeChip } from './ui';
 
@@ -35,10 +36,15 @@ const STEPS = [
   { no: '3', title: '게임 리뷰', text: '판을 바꾼 턴과 약점을 다시 봐요.' },
 ];
 
-export function Lobby({ onStart, busy, error }: { onStart: (o: LobbyOptions) => void; busy: boolean; error: string | null }) {
+export function Lobby({ onStart, onStartStory, busy, error }: {
+  onStart: (o: LobbyOptions) => void;
+  onStartStory: (id: string) => void;
+  busy: boolean;
+  error: string | null;
+}) {
   const [o, setO] = useState<LobbyOptions>({ format: '3v3', ai: 2, coaching: 'beginner', timer: false });
   // the landing view introduces the app; settings get their own screen
-  const [step, setStep] = useState<'home' | 'setup'>('home');
+  const [step, setStep] = useState<'home' | 'setup' | 'story'>('home');
   const coaching = COACHING.find(c => c.id === o.coaching)!;
   const summary = [
     FORMATS.find(f => f.id === o.format)!.title,
@@ -46,6 +52,15 @@ export function Lobby({ onStart, busy, error }: { onStart: (o: LobbyOptions) => 
     `AI ${AI.find(a => a.id === o.ai)!.title}`,
     o.timer ? '턴 45초' : '시간 제한 없음',
   ].join(' · ');
+
+  if (step === 'story') {
+    return (
+      <>
+        {error && <p className="error">{error}</p>}
+        <Story onStart={onStartStory} onBack={() => setStep('home')} busy={busy} />
+      </>
+    );
+  }
 
   if (step === 'home') {
     return (
@@ -67,9 +82,15 @@ export function Lobby({ onStart, busy, error }: { onStart: (o: LobbyOptions) => 
               ))}
             </ol>
             <div className="hero-cta">
-              <button className="primary big" onClick={() => setStep('setup')}>
-                배틀하러 가기
-              </button>
+              <div className="cta-row">
+                <button className="primary big" onClick={() => setStep('story')}>
+                  퍼즐
+                </button>
+                <button className="ghost big" onClick={() => setStep('setup')}>
+                  자유 배틀
+                </button>
+              </div>
+              <p className="small muted">처음이라면 퍼즐부터. 퍼즐마다 원칙 하나씩 배워요.</p>
               <div className="grade-strip" aria-label="턴마다 받는 등급">
                 {GRADES.map(([g, sym, label]) => <GradeChip key={g} grade={g} sym={sym} label={label} compact />)}
                 <span className="muted small">턴마다 이 중 하나를 받아요</span>

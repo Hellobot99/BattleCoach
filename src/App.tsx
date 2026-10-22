@@ -6,6 +6,7 @@ import { Preview } from './Preview';
 import { ReviewScreen } from './ReviewScreen';
 import type { GameState } from './types';
 import { sound, useSound } from './sound';
+import { saveStars, starsFor } from './progress';
 
 export function App() {
   const [state, setState] = useState<GameState | null>(null);
@@ -47,6 +48,11 @@ export function App() {
     setOpts(o);
     run(() => api.create(o));
   };
+  const startStory = (id: string) => {
+    sound.startMusic();
+    setOpts(null);
+    run(() => api.create({ story: id }));
+  };
   const leave = () => {
     sound.stopMusic();
     setReturnTo(null);
@@ -68,13 +74,15 @@ export function App() {
   useEffect(() => {
     // the last turn has played out: end the battle music with a short jingle
     if (reviewing && state) sound.playEnd(state.winner === 'me');
+    // story mode: record the stars (a retry of a turn does not count)
+    if (reviewing && state?.story && !state.retry) saveStars(state.story.id, starsFor(state.winner === 'me', state.summary?.accuracy ?? null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviewing]);
 
   if (!state) {
     return (
       <Shell>
-        <Lobby onStart={start} busy={busy} error={error} />
+        <Lobby onStart={start} onStartStory={startStory} busy={busy} error={error} />
       </Shell>
     );
   }
@@ -85,7 +93,8 @@ export function App() {
     body = (
       <ReviewScreen
         state={state}
-        onAgain={() => opts && start(opts)}
+        onAgain={() => (state.story ? startStory(state.story.id) : opts && start(opts))}
+        onNextStage={state.story?.next ? () => startStory(state.story!.next!) : undefined}
         onLobby={leave}
         onRetry={index => retry(state, index)}
         onBackToOriginal={returnTo ? backToReview : undefined}

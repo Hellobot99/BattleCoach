@@ -144,6 +144,34 @@ export interface GameState {
   summary: Summary | null;
   /** set when this game is a 「다시 해 보기」 of turn `index` of game `fromId` */
   retry: { fromId: string; index: number; original: Review } | null;
+  story: StoryInfo | null;
+  hintsLeft: number | null;
+}
+
+export interface StoryInfo {
+  id: string;
+  no: number;
+  next: string | null;
+  title: string;
+  trainer: string;
+  lesson: string;
+  goal: string;
+  hintLimit: number | null;
+}
+
+export interface StoryStage {
+  id: string;
+  no: number;
+  title: string;
+  trainer: string;
+  lesson: string;
+  goal: string;
+  ai: number;
+  timer: boolean;
+  hintLimit: number | null;
+  coaching: Coaching;
+  me: { species: string; spriteid: string }[];
+  foe: { species: string; spriteid: string }[];
 }
 
 export type Side = 'p1' | 'p2';

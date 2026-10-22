@@ -126,6 +126,16 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated, onBackToRevi
           onContinue={() => setRetryDismissed(true)}
         />
       )}
+      {state.story && !state.retry && (
+        <section className="story-goal">
+          <span className="sg-no">{state.story.no}</span>
+          <span>
+            <b>{state.story.title}</b> <span className="muted">· {state.story.trainer} · 배울 것 {state.story.lesson}</span>
+            <br />
+            <span className="small">{state.story.goal}</span>
+          </span>
+        </section>
+      )}
       <div className="battle-main">
         <div className="stage-wrap">
           <Field frame={frame} state={state} prompt={prompt} playing={playing} onInspect={setInspect} />
@@ -257,8 +267,9 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated, onBackToRevi
           <section className="panel hint-panel">
             <div className="panel-head">
               <h3>힌트</h3>
-              <button className="ghost small" onClick={onHint} disabled={locked || d.hintLevel >= 3 || !d.evalReady}>
+              <button className="ghost small" onClick={onHint} disabled={locked || d.hintLevel >= 3 || !d.evalReady || state.hintsLeft === 0}>
                 {d.hintLevel === 0 ? '힌트 보기' : d.hintLevel < 3 ? `힌트 ${d.hintLevel + 1}/3` : '힌트 끝'}
+                {state.hintsLeft !== null && ` · 남은 ${state.hintsLeft}`}
               </button>
             </div>
             {d.hints.length ? (

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { GameState, GradeKey } from './types';
 import { CoachCard } from './Battle';
 import { GradeChip, TAG_LESSON } from './ui';
+import { starsFor } from './progress';
 
 const ORDER: { key: GradeKey; label: string; sym: string }[] = [
   { key: 'brill', label: '묘수', sym: '!!' },
@@ -14,12 +15,13 @@ const ORDER: { key: GradeKey; label: string; sym: string }[] = [
   { key: 'blund', label: '블런더', sym: '??' },
 ];
 
-export function ReviewScreen({ state, onAgain, onLobby, onRetry, onBackToOriginal }: {
+export function ReviewScreen({ state, onAgain, onLobby, onRetry, onBackToOriginal, onNextStage }: {
   state: GameState;
   onAgain: () => void;
   onLobby: () => void;
   onRetry: (index: number) => void;
   onBackToOriginal?: () => void;
+  onNextStage?: () => void;
 }) {
   const s = state.summary;
   const reviews = state.reviews;
@@ -45,6 +47,8 @@ export function ReviewScreen({ state, onAgain, onLobby, onRetry, onBackToOrigina
           </span>
         </div>
       </header>
+
+      {state.story && !state.retry && <StageResult state={state} onNext={onNextStage} onAgain={onAgain} />}
 
       <section className="panel">
         <h3>등급별 횟수</h3>
@@ -117,13 +121,54 @@ export function ReviewScreen({ state, onAgain, onLobby, onRetry, onBackToOrigina
           </button>
         )}
         <button className="primary" onClick={onAgain}>
-          같은 설정으로 다시
+          {state.story ? '이 퍼즐 다시 도전' : '같은 설정으로 다시'}
         </button>
         <button className="ghost" onClick={onLobby}>
           처음으로
         </button>
       </div>
     </div>
+  );
+}
+
+/** Story mode: stars for this stage and the way forward. */
+function StageResult({ state, onNext, onAgain }: { state: GameState; onNext?: () => void; onAgain: () => void }) {
+  const st = state.story!;
+  const stars = starsFor(state.winner === 'me', state.summary?.accuracy ?? null);
+  return (
+    <section className={`stage-result${stars ? ' win' : ''}`}>
+      <div>
+        <p className="eyebrow">
+          {st.no}. {st.title} · {st.trainer}
+        </p>
+        <h3 className="sr-title">{stars ? '퍼즐 성공!' : '아쉽게 졌어요'}</h3>
+        <p className="small muted">
+          {stars
+            ? stars < 3
+              ? `정확도 ${stars === 1 ? '70' : '85'} 이상이면 별을 하나 더 받아요.`
+              : '별 세 개! 이 퍼즐의 원칙을 완전히 익혔어요.'
+            : `배울 것: ${st.lesson}. 아래 타임라인에서 실수한 턴을 다시 해 보고 재도전하세요.`}
+        </p>
+      </div>
+      <span className="stars big" aria-label={`별 ${stars}개`}>
+        {[1, 2, 3].map(i => (
+          <i key={i} className={i <= stars ? 'on' : ''}>★</i>
+        ))}
+      </span>
+      <div className="sr-actions">
+        {stars > 0 && onNext && (
+          <button className="primary" onClick={onNext}>
+            다음 퍼즐
+          </button>
+        )}
+        {stars > 0 && !onNext && <span className="tag">마지막 퍼즐까지 풀었어요</span>}
+        {!stars && (
+          <button className="primary" onClick={onAgain}>
+            다시 도전
+          </button>
+        )}
+      </div>
+    </section>
   );
 }
 

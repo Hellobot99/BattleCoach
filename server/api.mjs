@@ -1,5 +1,6 @@
 // JSON API mounted on the Vite dev server (`npm run dev`), so the page and the simulator run from one command.
 import { createGame, getGame, retryGame } from './game.mjs';
+import { storyList } from './story.mjs';
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -25,6 +26,7 @@ function send(res, status, body) {
 async function handle(req, res) {
   const url = new URL(req.url, 'http://local');
   const parts = url.pathname.split('/').filter(Boolean); // ['games', id?, action?]
+  if (parts[0] === 'story' && req.method === 'GET') return send(res, 200, storyList());
   if (parts[0] !== 'games') return send(res, 404, { error: 'not found' });
 
   if (parts.length === 1 && req.method === 'POST') {

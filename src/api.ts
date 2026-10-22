@@ -1,4 +1,4 @@
-import type { Coaching, Format, GameState } from './types';
+import type { Coaching, Format, GameState, StoryStage } from './types';
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -11,8 +11,9 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  create: (opts: { format: Format; ai: number; coaching: Coaching; timer: boolean }) =>
+  create: (opts: { format: Format; ai: number; coaching: Coaching; timer: boolean } | { story: string }) =>
     call<GameState>('/games', { method: 'POST', body: JSON.stringify(opts) }),
+  story: () => call<StoryStage[]>('/story'),
   get: (id: string, waitEval = false) => call<GameState>(`/games/${id}${waitEval ? '?wait=eval' : ''}`),
   choose: (id: string, choice: string, timeout = false) =>
     call<GameState>(`/games/${id}/choose`, { method: 'POST', body: JSON.stringify({ choice, timeout }) }),
