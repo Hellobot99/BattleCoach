@@ -45,6 +45,7 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated, onBackToRevi
   const [fast, setFast] = useStoredFlag(SPEED_KEY, false);
   const [gimmick, setGimmick] = useState(false);
   const [inspect, setInspect] = useState<'p1' | 'p2' | null>(null);
+  const [hoverMove, setHoverMove] = useState<Choice | null>(null);
   const [retryDismissed, setRetryDismissed] = useState(false);
 
   // what the player has already seen: the coach card and win bar wait until the turn has played out
@@ -166,6 +167,19 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated, onBackToRevi
           </div>
         )}
 
+        {showCoach && (
+          <section className="panel coach-panel" aria-live="polite">
+            <div className="panel-head">
+              <h3>코치</h3>
+              {busy && <span className="thinking">계산 중</span>}
+            </div>
+            {last ? <CoachCard r={last} /> : <p className="muted">첫 턴을 고르면 등급과 이유를 알려 줘요.</p>}
+          </section>
+        )}
+        <Log log={state.log} upTo={playing ? seenLog : state.log.length} />
+      </div>
+
+      <aside className="battle-side">
         <section className={`actions${playing ? ' dim' : ''}`} aria-label="행동 고르기">
           {d ? (
             <>
@@ -182,11 +196,22 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated, onBackToRevi
                 )}
               </div>
               {d.kind === 'move' && (
-                <div className="move-grid">
-                  {moves.map(c => (
-                    <MoveButton key={c.choice} c={c} showEff={showEff} disabled={locked} onClick={() => pick(c)} />
-                  ))}
-                </div>
+                <>
+                  <div className="move-grid" onMouseLeave={() => setHoverMove(null)}>
+                    {moves.map(c => (
+                      <MoveButton key={c.choice} c={c} showEff={showEff} disabled={locked} onClick={() => pick(c)} onHover={() => setHoverMove(c)} />
+                    ))}
+                  </div>
+                  <p className="desc-strip" aria-live="polite">
+                    {hoverMove ? (
+                      <>
+                        <b>{hoverMove.moveName}</b> {hoverMove.desc}
+                      </>
+                    ) : (
+                      <span className="muted">기술에 마우스를 올리면 설명이 나와요.</span>
+                    )}
+                  </p>
+                </>
               )}
               {gimmickKind && d.kind === 'move' && (
                 <label className={`gimmick-toggle g-${gimmickKind}${gimmick ? ' on' : ''}`}>
@@ -227,18 +252,6 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated, onBackToRevi
             <p className="muted">{state.ended ? '배틀이 끝났어요. 리뷰를 준비하는 중…' : '상대를 기다리는 중…'}</p>
           )}
         </section>
-      </div>
-
-      <aside className="battle-side">
-        {showCoach && (
-          <section className="panel coach-panel" aria-live="polite">
-            <div className="panel-head">
-              <h3>코치</h3>
-              {busy && <span className="thinking">계산 중</span>}
-            </div>
-            {last ? <CoachCard r={last} /> : <p className="muted">첫 턴을 고르면 등급과 이유를 알려 줘요.</p>}
-          </section>
-        )}
         {d && showCoach && (
           <section className="panel hint-panel">
             <div className="panel-head">
@@ -256,7 +269,6 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated, onBackToRevi
             )}
           </section>
         )}
-        <Log log={state.log} upTo={playing ? seenLog : state.log.length} />
       </aside>
       {inspect && (inspect === 'p1' ? me : foe?.details ? foe : null) && (
         <InfoSheet mon={(inspect === 'p1' ? me : foe)!} side={inspect} onClose={() => setInspect(null)} />
@@ -331,10 +343,10 @@ function Boosts({ label, b }: { label: string; b?: Record<string, number> }) {
   );
 }
 
-function MoveButton({ c, showEff, disabled, onClick }: { c: Choice; showEff: boolean; disabled: boolean; onClick: () => void }) {
+function MoveButton({ c, showEff, disabled, onClick, onHover }: { c: Choice; showEff: boolean; disabled: boolean; onClick: () => void; onHover: () => void }) {
   const eff = showEff ? effLabel(c.effType) : null;
   return (
-    <button className={`move-btn mt-${c.type}`} disabled={disabled} onClick={onClick}>
+    <button className={`move-btn mt-${c.type}`} disabled={disabled} onClick={onClick} onMouseEnter={onHover} onFocus={onHover}>
       <span className="mv-top">
         <span className="mv-name">{c.moveName || c.label}</span>
         {c.type && <TypeChip type={c.type} small />}

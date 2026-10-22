@@ -66,7 +66,9 @@ export function App() {
   };
   const reviewing = !!state?.ended && animated.id === state.id && animated.len >= state.log.length;
   useEffect(() => {
-    if (reviewing) sound.stopMusic();
+    // the last turn has played out: end the battle music with a short jingle
+    if (reviewing && state) sound.playEnd(state.winner === 'me');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviewing]);
 
   if (!state) {

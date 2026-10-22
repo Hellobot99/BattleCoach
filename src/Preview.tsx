@@ -7,6 +7,8 @@ const SLOT_LABEL = ['선봉', '2번', '3번', '4번', '5번', '6번'];
 export function Preview({ state, onChoose, busy }: { state: GameState; onChoose: (choice: string) => void; busy: boolean }) {
   const d = state.decision;
   const [picks, setPicks] = useState<number[]>([]);
+  // the coach's pick stays hidden until asked for, so the player tries on their own first
+  const [showRec, setShowRec] = useState(false);
   if (!d || d.kind !== 'preview') return null;
   const size = d.size;
   const rec = d.recommend;
@@ -43,8 +45,8 @@ export function Preview({ state, onChoose, busy }: { state: GameState; onChoose:
           {state.me.team.map((m, i) => {
             const slot = i + 1;
             const order = picks.indexOf(slot);
-            const mu = rec.matchups?.[i];
-            const recommended = rec.slots.includes(slot);
+            const mu = showRec ? rec.matchups?.[i] : null;
+            const recommended = showRec && rec.slots.includes(slot);
             return (
               <button key={m.name} className={`pick-card${order >= 0 ? ' picked' : ''}`} onClick={() => toggle(slot)} aria-pressed={order >= 0}>
                 {order >= 0 && <span className="pick-badge">{SLOT_LABEL[order]}</span>}
@@ -113,12 +115,19 @@ export function Preview({ state, onChoose, busy }: { state: GameState; onChoose:
 
           <section className="panel rec-panel">
             <div className="panel-head">
-              <h3>코치 추천</h3>
-              <button className="ghost small" onClick={() => setPicks(rec.slots)}>
-                추천대로 고르기
-              </button>
+              <label className="switch">
+                <input id="show-rec" type="checkbox" checked={showRec} onChange={e => setShowRec(e.target.checked)} />
+                <span className="switch-track" aria-hidden="true" />
+                <span>코치 추천 보기</span>
+              </label>
+              {showRec && (
+                <button className="ghost small" onClick={() => setPicks(rec.slots)}>
+                  추천대로 고르기
+                </button>
+              )}
             </div>
-            <div className="coach-card">
+            {!showRec && <p className="muted small">먼저 혼자 골라 보세요. 켜면 추천 3마리와 카드마다 상대 6마리 기준 유리 · 불리 수가 나와요.</p>}
+            {showRec && <div className="coach-card">
               <div className="coach-face" aria-hidden="true">코</div>
               <div className="coach-body">
                 <ul className="rec-lines">
@@ -128,7 +137,7 @@ export function Preview({ state, onChoose, busy }: { state: GameState; onChoose:
                 </ul>
                 <p className="muted small">상성만 보고 추천해요. 선출 등급은 2차에 넣어요.</p>
               </div>
-            </div>
+            </div>}
           </section>
         </aside>
       </div>

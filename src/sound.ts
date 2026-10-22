@@ -59,6 +59,19 @@ export const sound = {
     }, 60);
   },
 
+  /**
+   * End-of-battle jingle. Plays public/audio/victory.mp3 (or defeat.mp3) when the player has put one there;
+   * otherwise a short fanfare of our own for a win, and nothing for a loss.
+   */
+  playEnd(win: boolean) {
+    this.stopMusic();
+    if (settings.muted) return;
+    const a = new Audio(`/audio/${win ? 'victory' : 'defeat'}.mp3`);
+    a.volume = musicVolume();
+    a.addEventListener('error', () => win && fanfare(), { once: true });
+    a.play().catch(() => {});
+  },
+
   /** Plays a cry; `faint` plays it lower and slower, like the games. Forms fall back to the base cry. */
   cry(spriteid: string, faint = false) {
     if (settings.muted || !spriteid) return;
@@ -96,6 +109,34 @@ export const sound = {
     return () => listeners.delete(l);
   },
 };
+
+/** A short original fanfare (not a game melody), synthesized so no audio file is needed. */
+function fanfare() {
+  const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctx) return;
+  const ctx = new Ctx();
+  const vol = musicVolume() * 0.35;
+  // [semitones above C5, start beat, length in beats]
+  const notes: [number, number, number][] = [[0, 0, 0.5], [4, 0.5, 0.5], [7, 1, 0.5], [12, 1.5, 1], [9, 2.5, 0.5], [12, 3, 1.5]];
+  const beat = 0.16;
+  const t0 = ctx.currentTime + 0.05;
+  for (const [semi, start, len] of notes) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 523.25 * 2 ** (semi / 12);
+    const s = t0 + start * beat;
+    const e = s + len * beat;
+    gain.gain.setValueAtTime(0, s);
+    gain.gain.linearRampToValueAtTime(vol, s + 0.01);
+    gain.gain.setValueAtTime(vol, e - 0.03);
+    gain.gain.linearRampToValueAtTime(0, e);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(s);
+    osc.stop(e + 0.02);
+  }
+  window.setTimeout(() => ctx.close(), 2000);
+}
 
 export function useSound() {
   return useSyncExternalStore(sound.subscribe, sound.get, sound.get);

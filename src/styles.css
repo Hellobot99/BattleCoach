@@ -242,7 +242,17 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .rec-lines { margin: 0; padding-left: 16px; font-size: 13.5px; display: flex; flex-direction: column; gap: 4px; }
 
 /* ---------- battle layout ---------- */
-.battle { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 18px; align-items: start; }
+.battle { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(340px, 1fr); gap: 18px; align-items: start; }
+/* the move panel stays in view next to the field while the left column scrolls */
+.battle-side { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 68px); }
+.battle-side .actions { padding: 12px 14px 14px; gap: 10px; }
+.battle-side .move-grid { gap: 8px; }
+.battle-side .move-btn { padding: 8px 10px 8px 14px; gap: 4px; }
+.battle-side .mv-name { font-size: 15px; }
+.battle-side .switch-btn { min-width: 0; flex: 1 1 140px; }
+.desc-strip { font-size: 12.5px; line-height: 1.5; min-height: 38px; margin: 0; padding: 6px 10px; border-radius: 8px; background: var(--paper-2); }
+.desc-strip b { margin-right: 4px; }
+@media (min-width: 961px) { .move-btn .mv-desc { display: none; } }
 .battle-main, .battle-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .stage-wrap { position: relative; }
 .stage-controls { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 6; }
@@ -475,7 +485,18 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 
 /* ---------- narrow screens ---------- */
 @media (max-width: 960px) {
-  .battle { grid-template-columns: minmax(0, 1fr); }
+  /* one column: field, then the moves, then coach / hints / log */
+  .battle { display: flex; flex-direction: column; gap: 12px; }
+  .battle-main, .battle-side { display: contents; }
+  .retry-banner { order: 0; }
+  .stage-wrap { order: 1; }
+  .winbar { order: 2; }
+  .field-notes { order: 3; }
+  .actions { order: 4; }
+  .coach-panel { order: 5; }
+  .hint-panel { order: 6; }
+  .log-panel { order: 7; }
+  .desc-strip { display: none; }
   .hero { grid-template-columns: minmax(0, 1fr); }
   .pick-body { grid-template-columns: minmax(0, 1fr); }
   .pick-side { position: static; }
