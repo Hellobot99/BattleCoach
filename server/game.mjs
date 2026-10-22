@@ -3,10 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { Battle, FORMATS, toID } from './showdown.mjs';
 import { legalChoices, aiChoose, typeMultiplier, speedOf, pickTeam, matchup } from './policy.mjs';
 import { evaluate } from './evaluator.mjs';
-import { setStats } from './determinize.mjs';
+import { setStats, fits } from './determinize.mjs';
 import { gradeTurn, hintFor, summarize, GRADES } from './coach.mjs';
 import { eun, eul, iga } from './korean.mjs';
-import { koMove, koItem, koAbility, koSpecies, koType } from './names.mjs';
+import { koMove, koItem, koAbility, koSpecies, koType, moveDesc, abilityDesc, itemDesc, TYPE_KO } from './names.mjs';
 
 const STATUS = { brn: '화상', par: '마비', slp: '잠듦', psn: '독', tox: '맹독', frz: '얼음' };
 const STATS = { atk: '공격', def: '방어', spa: '특수공격', spd: '특수방어', spe: '스피드', accuracy: '명중률', evasion: '회피율' };
@@ -201,6 +201,7 @@ class Game {
           ...c,
           label: moveName + suffix,
           moveName,
+          desc: moveDesc(move),
           type: move.type,
           category: move.category,
           power: move.basePower || null,
@@ -236,13 +237,71 @@ class Game {
       fainted: p.fainted,
       active: p.isActive,
       item: p.item ? koItem(dex.items.get(p.item).name) : null,
+      itemDesc: p.item ? itemDesc(dex.items.get(p.item)) : null,
       ability: koAbility(dex.abilities.get(p.ability).name),
+      abilityDesc: abilityDesc(dex.abilities.get(p.ability)),
+      weak: this.matchupChart(p),
       types: p.getTypes(),
       teraType: this.format === '6v6' ? p.teraType : null,
       terastallized: p.terastallized || null,
       boosts: Object.fromEntries(Object.entries(p.boosts).filter(([, v]) => v)),
-      stats: p.storedStats,
-      moves: p.moveSlots.map(s => ({ name: koMove(s.move), pp: s.pp, maxpp: s.maxpp, type: dex.moves.get(s.id).type })),
+      stats: { hp: p.maxhp, ...p.storedStats },
+      moves: p.moveSlots.map(s => ({ name: koMove(s.move), pp: s.pp, maxpp: s.maxpp, type: dex.moves.get(s.id).type, desc: moveDesc(dex.moves.get(s.id)) })),
+    };
+  }
+
+  /** Damage taken from each attacking type: what a player checks before switching in. */
+  matchupChart(p) {
+    const dex = this.battle.dex;
+    const chart = { x4: [], x2: [], half: [], quarter: [], immune: [] };
+    for (const t of Object.keys(TYPE_KO)) {
+      if (t === 'Stellar') continue;
+      const m = dex.getImmunity(t, p) ? 2 ** dex.getEffectiveness(t, p) : 0;
+      if (m === 0) chart.immune.push(t);
+      else if (m >= 4) chart.x4.push(t);
+      else if (m >= 2) chart.x2.push(t);
+      else if (m <= 0.25) chart.quarter.push(t);
+      else if (m < 1) chart.half.push(t);
+    }
+    return chart;
+  }
+
+  /** Opponent details a player could look up: base stats, speed, and the odds for what is still hidden. */
+  foeDetails(p, seen) {
+    const dex = this.battle.dex;
+    const db = setStats(this.format === '6v6' ? 'gen9' : 'champions')[toID(p.set.species)];
+    const info = {
+      moves: [...seen.moves].map(toID),
+      item: seen.item ? toID(seen.item) : null,
+      ability: seen.ability ? toID(seen.ability) : null,
+      tera: p.terastallized || null,
+    };
+    const odds = { moves: [], items: [], abilities: [], tera: [] };
+    if (db) {
+      const sets = db.sets.filter(s => fits(s, info));
+      const total = sets.reduce((a, s) => a + s.w, 0);
+      const tally = (key, get) => {
+        const m = {};
+        for (const s of sets) for (const v of [].concat(get(s))) if (v) m[v] = (m[v] || 0) + s.w;
+        odds[key] = Object.entries(m).sort((a, b) => b[1] - a[1]).map(([v, w]) => [v, Math.round((w / total) * 100)]);
+      };
+      if (total) {
+        tally('moves', s => s.moves.filter(m => !info.moves.includes(m)));
+        if (!info.item) tally('items', s => s.item);
+        if (!info.ability) tally('abilities', s => s.ability);
+        if (!info.tera && this.format === '6v6') tally('tera', s => s.teraType);
+      }
+    }
+    return {
+      baseStats: p.species.baseStats,
+      speed: { plain: Math.round(speedOf(p, null)), scarf: Math.round(speedOf(p, 'choicescarf')) },
+      weak: this.matchupChart(p),
+      odds: {
+        moves: odds.moves.map(([id, pct]) => [koMove(dex.moves.get(id).name), pct, dex.moves.get(id).type]),
+        items: odds.items.map(([n, pct]) => [koItem(n), pct]),
+        abilities: odds.abilities.map(([n, pct]) => [koAbility(n), pct]),
+        tera: odds.tera.map(([t, pct]) => [t, pct]),
+      },
     };
   }
 
@@ -263,6 +322,7 @@ class Game {
       moves: [...seen.moves].map(koMove),
       item: seen.item ? koItem(seen.item) : null,
       ability: seen.ability ? koAbility(seen.ability) : null,
+      details: this.foeSeen.has(p.name) ? this.foeDetails(p, seen) : null,
     };
   }
 

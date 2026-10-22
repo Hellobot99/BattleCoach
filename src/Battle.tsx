@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Field } from './Field';
+import { InfoSheet } from './InfoSheet';
 import { usePlayback } from './playback';
 import { sound } from './sound';
 import type { Choice, GameState, Review } from './types';
@@ -41,6 +42,7 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated }: Props) {
   const [showEff, setShowEff] = useStoredFlag(EFF_KEY, beginner);
   const [fast, setFast] = useStoredFlag(SPEED_KEY, false);
   const [gimmick, setGimmick] = useState(false);
+  const [inspect, setInspect] = useState<'p1' | 'p2' | null>(null);
 
   // what the player has already seen: the coach card and win bar wait until the turn has played out
   const [seenReviews, setSeenReviews] = useState(0);
@@ -111,7 +113,7 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated }: Props) {
     <div className="battle">
       <div className="battle-main">
         <div className="stage-wrap">
-          <Field frame={frame} state={state} prompt={prompt} playing={playing} />
+          <Field frame={frame} state={state} prompt={prompt} playing={playing} onInspect={setInspect} />
           <div className="stage-controls">
             {playing && (
               <button className="chip-btn" onClick={skip}>
@@ -135,13 +137,19 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated }: Props) {
                 <span className="muted"> · 선공기 제외{state.speedNote ? ` · ${state.speedNote}` : ''}</span>
               </span>
             )}
+            {foe?.details && (
+              <button className="note note-btn" onClick={() => setInspect('p2')}>
+                상대 정보 보기
+              </button>
+            )}
+            {me && (
+              <button className="note note-btn" onClick={() => setInspect('p1')}>
+                내 포켓몬 정보
+              </button>
+            )}
             <Boosts label="내" b={me?.boosts} />
             <Boosts label="상대" b={foe?.boosts} />
-            {foe && (foe.moves.length > 0 || foe.item || foe.ability) && (
-              <span className="note muted">
-                상대가 드러낸 정보: {[foe.moves.join(', '), foe.item, foe.ability].filter(Boolean).join(' · ')}
-              </span>
-            )}
+
           </div>
         )}
 
@@ -237,6 +245,9 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated }: Props) {
         )}
         <Log log={state.log} upTo={playing ? seenLog : state.log.length} />
       </aside>
+      {inspect && (inspect === 'p1' ? me : foe?.details ? foe : null) && (
+        <InfoSheet mon={(inspect === 'p1' ? me : foe)!} side={inspect} onClose={() => setInspect(null)} />
+      )}
     </div>
   );
 }
@@ -270,6 +281,7 @@ function MoveButton({ c, showEff, disabled, onClick }: { c: Choice; showEff: boo
         <span>{c.accuracy ? `명중 ${c.accuracy}` : '반드시 명중'}</span>
         {c.pp !== undefined && <span className="pp">PP {c.pp}/{c.maxpp}</span>}
       </span>
+      {c.desc && <span className="mv-desc">{c.desc}</span>}
       {eff && <span className={`eff-pill ${eff.tone}`}>{eff.text}</span>}
     </button>
   );

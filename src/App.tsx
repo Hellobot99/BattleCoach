@@ -144,7 +144,7 @@ function Shell({ children, top }: { children: ReactNode; top?: ReactNode }) {
         <a href="https://pokemonshowdown.com" target="_blank" rel="noreferrer">
           Pokémon Showdown
         </a>
-        에서 가져왔습니다(배틀 음악과 울음소리 포함). 프로토타입 평가기는 상대 세트를 모두 아는 상태로 계산합니다.
+        에서 가져왔습니다(배틀 음악과 울음소리 포함). 상대의 드러나지 않은 정보는 랜덤 배틀 세트 확률로 추정해 평가합니다. 기술·특성 설명은 PokeAPI의 한국어 게임 내 설명입니다.
       </footer>
     </div>
   );

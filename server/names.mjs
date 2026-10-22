@@ -25,6 +25,11 @@ export const koItem = name => (name ? KO.items[toID(name)] || name : name);
 export const koAbility = name => (name ? KO.abilities[toID(name)] || name : name);
 export const koType = type => TYPE_KO[type] || type;
 
+/** In-game Korean description; Showdown's English one-liner when PokeAPI has no Korean text yet. */
+export const moveDesc = move => KO.moveDesc[move.id] || move.shortDesc || move.desc || '';
+export const abilityDesc = ability => KO.abilityDesc[ability.id] || ability.shortDesc || '';
+export const itemDesc = item => KO.itemDesc[item.id] || item.shortDesc || '';
+
 /** "Golurk-Mega" -> "메가골루그", "Tauros-Paldea-Aqua" -> "켄타로스 (팔데아 워터종)". */
 export function koSpecies(name) {
   const s = Dex.species.get(name);

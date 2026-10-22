@@ -51,7 +51,7 @@ function remap(root, swaps) {
   walk(root);
 }
 
-function fits(set, info) {
+export function fits(set, info) {
   if (info.moves.some(m => !set.moves.includes(m))) return false;
   if (info.item && toID(set.item) !== info.item) return false;
   if (info.ability && toID(set.ability) !== info.ability) return false;

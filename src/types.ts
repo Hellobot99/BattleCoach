@@ -16,13 +16,16 @@ export interface MyMon {
   fainted: boolean;
   active: boolean;
   item: string | null;
+  itemDesc: string | null;
   ability: string;
+  abilityDesc: string;
+  weak: WeakChart;
   types: string[];
   teraType: string | null;
   terastallized: string | null;
   boosts: Record<string, number>;
   stats: Record<string, number>;
-  moves: { name: string; pp: number; maxpp: number; type: string }[];
+  moves: { name: string; pp: number; maxpp: number; type: string; desc: string }[];
 }
 
 export interface FoeMon {
@@ -40,6 +43,23 @@ export interface FoeMon {
   moves: string[];
   item: string | null;
   ability: string | null;
+  details: FoeDetails | null;
+}
+
+export interface WeakChart {
+  x4: string[];
+  x2: string[];
+  half: string[];
+  quarter: string[];
+  immune: string[];
+}
+
+export interface FoeDetails {
+  baseStats: Record<string, number>;
+  speed: { plain: number; scarf: number };
+  weak: WeakChart;
+  /** [name, percent] (moves also carry their type) for what is still hidden */
+  odds: { moves: [string, number, string][]; items: [string, number][]; abilities: [string, number][]; tera: [string, number][] };
 }
 
 export interface Choice {
@@ -49,6 +69,7 @@ export interface Choice {
   label: string;
   gimmick?: 'tera' | 'mega' | null;
   moveName?: string;
+  desc?: string;
   type?: string;
   category?: string;
   power?: number | null;
