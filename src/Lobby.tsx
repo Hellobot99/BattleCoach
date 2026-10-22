@@ -37,6 +37,8 @@ const STEPS = [
 
 export function Lobby({ onStart, busy, error }: { onStart: (o: LobbyOptions) => void; busy: boolean; error: string | null }) {
   const [o, setO] = useState<LobbyOptions>({ format: '3v3', ai: 2, coaching: 'beginner', timer: false });
+  // the landing view introduces the app; settings get their own screen
+  const [step, setStep] = useState<'home' | 'setup'>('home');
   const coaching = COACHING.find(c => c.id === o.coaching)!;
   const summary = [
     FORMATS.find(f => f.id === o.format)!.title,
@@ -45,59 +47,73 @@ export function Lobby({ onStart, busy, error }: { onStart: (o: LobbyOptions) => 
     o.timer ? '턴 45초' : '시간 제한 없음',
   ].join(' · ');
 
+  if (step === 'home') {
+    return (
+      <div className="lobby home">
+        <section className="hero">
+          <div className="hero-text">
+            <p className="eyebrow">포켓몬 싱글 배틀 코칭</p>
+            <h1>한 턴마다, 코치가 알려 줘요.</h1>
+            <p className="hero-lead">고른 행동이 최선이었는지, 아니라면 무엇이 더 나았고 왜 그런지. 체스 엔진처럼 매 턴을 평가해요.</p>
+            <ol className="steps">
+              {STEPS.map(s => (
+                <li key={s.no}>
+                  <span className="step-no">{s.no}</span>
+                  <span>
+                    <b>{s.title}</b>
+                    <small>{s.text}</small>
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <div className="hero-cta">
+              <button className="primary big" onClick={() => setStep('setup')}>
+                배틀하러 가기
+              </button>
+              <div className="grade-strip" aria-label="턴마다 받는 등급">
+                {GRADES.map(([g, sym, label]) => <GradeChip key={g} grade={g} sym={sym} label={label} compact />)}
+                <span className="muted small">턴마다 이 중 하나를 받아요</span>
+              </div>
+            </div>
+          </div>
+
+          <figure className="demo" aria-label="코칭 예시">
+            <div className="demo-stage">
+              <div className="demo-sky" />
+              <div className="demo-ground" />
+              <div className="demo-foe">
+                <FieldSprite id="tyranitar" back={false} alt="마기라스" />
+              </div>
+              <div className="demo-me">
+                <FieldSprite id="garchomp" back alt="한카리아스" />
+              </div>
+              <span className="demo-tag">예시</span>
+            </div>
+            <figcaption className="demo-coach">
+              <span className="coach-face" aria-hidden="true">코</span>
+              <span className="demo-bubble">
+                <span className="demo-line1">
+                  <b>한카리아스 → 지진</b>
+                  <GradeChip grade="best" sym="★" label="최선" />
+                </span>
+                <span>상대 마기라스에게 효과가 굉장하고, 내가 먼저 움직여요.</span>
+                <span className="demo-alt">드래곤클로였다면 <GradeChip grade="mist" sym="?" label="실수" compact /> 확정 2타라 반격을 한 번 받아요.</span>
+              </span>
+            </figcaption>
+          </figure>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="lobby">
-      <section className="hero">
-        <div className="hero-text">
-          <p className="eyebrow">포켓몬 싱글 배틀 코칭</p>
-          <h1>한 턴마다, 코치가 알려 줘요.</h1>
-          <p className="hero-lead">고른 행동이 최선이었는지, 아니라면 무엇이 더 나았고 왜 그런지. 체스 엔진처럼 매 턴을 평가해요.</p>
-          <ol className="steps">
-            {STEPS.map(s => (
-              <li key={s.no}>
-                <span className="step-no">{s.no}</span>
-                <span>
-                  <b>{s.title}</b>
-                  <small>{s.text}</small>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        <figure className="demo" aria-label="코칭 예시">
-          <div className="demo-stage">
-            <div className="demo-sky" />
-            <div className="demo-ground" />
-            <div className="demo-foe">
-              <FieldSprite id="tyranitar" back={false} alt="마기라스" />
-            </div>
-            <div className="demo-me">
-              <FieldSprite id="garchomp" back alt="한카리아스" />
-            </div>
-            <span className="demo-tag">예시</span>
-          </div>
-          <figcaption className="demo-coach">
-            <span className="coach-face" aria-hidden="true">코</span>
-            <span className="demo-bubble">
-              <span className="demo-line1">
-                <b>한카리아스 → 지진</b>
-                <GradeChip grade="best" sym="★" label="최선" />
-              </span>
-              <span>상대 마기라스에게 효과가 굉장하고, 내가 먼저 움직여요.</span>
-              <span className="demo-alt">드래곤클로였다면 <GradeChip grade="mist" sym="?" label="실수" compact /> 확정 2타라 반격을 한 번 받아요.</span>
-            </span>
-          </figcaption>
-        </figure>
-      </section>
-
       <section className="setup" aria-label="배틀 설정">
         <div className="setup-head">
+          <button className="link back-link" onClick={() => setStep('home')}>
+            ← 처음으로
+          </button>
           <h2>배틀 설정</h2>
-          <div className="grade-strip" aria-label="턴마다 받는 등급">
-            {GRADES.map(([g, sym, label]) => <GradeChip key={g} grade={g} sym={sym} label={label} compact />)}
-            <span className="muted small">턴마다 이 중 하나를 받아요</span>
-          </div>
         </div>
 
         <div className="setup-grid">

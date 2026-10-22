@@ -141,6 +141,13 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 
 /* ---------- lobby ---------- */
 .lobby { display: flex; flex-direction: column; gap: 22px; }
+/* landing: the intro alone, centred in the first screen */
+.lobby.home { min-height: calc(100vh - 190px); justify-content: center; }
+.hero-cta { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-top: 26px; }
+.hero-cta .primary.big { padding: 16px 34px; font-size: 17px; }
+.lobby:not(.home) { max-width: 960px; margin: 0 auto; width: 100%; }
+.lobby .setup-head { justify-content: flex-start; }
+.back-link { padding: 0; margin-right: 8px; font-size: 14px; text-decoration: none; }
 .eyebrow { font: 700 12px var(--f-mono); letter-spacing: .16em; color: var(--accent); margin-bottom: 8px; }
 .hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 28px; align-items: center; padding-block: 8px 4px; }
 .hero h1 { font: 400 50px/1.08 var(--f-display); letter-spacing: -.01em; }
