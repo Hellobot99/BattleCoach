@@ -1,0 +1,5 @@
+# Caddy in front of the app: HTTPS certificates are fetched automatically when SITE_ADDRESS is a domain name.
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

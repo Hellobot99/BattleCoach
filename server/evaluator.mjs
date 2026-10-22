@@ -4,12 +4,16 @@ import os from 'node:os';
 import { Battle, mulberry32 } from './showdown.mjs';
 import { determinize } from './determinize.mjs';
 
-const WORKERS = Math.max(1, Math.min(8, os.cpus().length - 2));
-const PHASE1 = 24; // rollouts per action for every action
-const PHASE2 = 72; // extra rollouts for actions still in contention
+// all of these can be tuned per server with environment variables (see DEPLOY.md)
+const env = (name, fallback) => Number(process.env[name]) || fallback;
+const CPUS = os.cpus().length;
+// small servers use every core; big machines leave two for the page and the game itself
+const WORKERS = env('EVAL_WORKERS', Math.max(1, Math.min(8, CPUS <= 4 ? CPUS : CPUS - 2)));
+const PHASE1 = env('EVAL_PHASE1', 24); // rollouts per action for every action
+const PHASE2 = env('EVAL_PHASE2', 72); // extra rollouts for actions still in contention
 const DEPTH = 4; // turns per rollout before scoring by remaining HP
 const PRUNE = 0.2; // actions this far below the best stop after phase 1
-const WORLDS = 12; // redrawn versions of the opponent's hidden info per evaluation
+const WORLDS = env('EVAL_WORLDS', 12); // redrawn versions of the opponent's hidden info per evaluation
 
 let pool = null;
 let nextId = 1;

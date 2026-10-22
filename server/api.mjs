@@ -1,4 +1,4 @@
-// JSON API mounted on the Vite dev server (`npm run dev`), so the page and the simulator run from one command.
+// JSON API. The Vite dev server mounts it (`npm run dev`); server/prod.mjs serves it with the built page (`npm start`).
 import { createGame, getGame, retryGame } from './game.mjs';
 import { storyList } from './story.mjs';
 
@@ -17,19 +17,37 @@ function readBody(req) {
   });
 }
 
-function send(res, status, body) {
+export function send(res, status, body) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(body));
 }
 
-async function handle(req, res) {
+// a public server caps how fast one address can start battles (each battle keeps the CPU busy)
+const GAMES_PER_HOUR = Number(process.env.GAMES_PER_HOUR || 0); // 0 = no limit
+const started = new Map(); // ip -> start times
+
+function allowNewGame(ip) {
+  if (!GAMES_PER_HOUR) return true;
+  const now = Date.now();
+  const recent = (started.get(ip) || []).filter(t => now - t < 3600e3);
+  if (recent.length >= GAMES_PER_HOUR) return false;
+  recent.push(now);
+  started.set(ip, recent);
+  return true;
+}
+
+/** Handles a request whose path has had the `/api` prefix removed. */
+export async function handle(req, res) {
   const url = new URL(req.url, 'http://local');
   const parts = url.pathname.split('/').filter(Boolean); // ['games', id?, action?]
+  if (parts[0] === 'health') return send(res, 200, { ok: true });
   if (parts[0] === 'story' && req.method === 'GET') return send(res, 200, storyList());
   if (parts[0] !== 'games') return send(res, 404, { error: 'not found' });
 
   if (parts.length === 1 && req.method === 'POST') {
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    if (!allowNewGame(ip)) return send(res, 429, { error: '배틀을 너무 많이 시작했어요. 잠시 뒤에 다시 해 주세요.' });
     const body = await readBody(req);
     return send(res, 200, createGame(body).state());
   }

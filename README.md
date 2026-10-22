@@ -97,6 +97,10 @@ npm run dev
 | `npm run ko-names` | PokeAPI에서 한국어 이름 · 설명을 다시 받기 (`server/data/ko-names.json`) |
 | `npm run puzzles` | 퍼즐 20단계를 다시 만들고 시뮬레이션으로 난이도 맞추기 (`server/data/puzzles.json`, 약 3분) |
 
+### 서버에 배포
+
+Docker로 띄울 수 있어요 (`Dockerfile`, `docker-compose.yml`: 앱 + Caddy 자동 HTTPS). EC2 기준 순서와 인스턴스 크기별 실측 속도는 [DEPLOY.md](DEPLOY.md)에 있어요. 로컬에서 배포용으로 띄우려면 `npm run build && npm start` (포트 3000).
+
 ### 배틀 종료 음악 (선택)
 
 `public/audio/victory.mp3`(이겼을 때), `defeat.mp3`(졌을 때)를 넣으면 배틀이 끝날 때 재생돼요. 없으면 직접 만든 짧은 팡파르가 나와요. 이 폴더의 음악 파일은 git에 올라가지 않아요. 원작 음원은 개인적으로만 넣어 쓰세요 ([안내](public/audio/README.md)).

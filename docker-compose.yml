@@ -1,0 +1,32 @@
+# docker compose up -d --build  (settings come from .env, see .env.example and DEPLOY.md)
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      GAMES_PER_HOUR: ${GAMES_PER_HOUR:-30}
+      EVAL_WORKERS: ${EVAL_WORKERS:-}
+      EVAL_PHASE1: ${EVAL_PHASE1:-}
+      EVAL_PHASE2: ${EVAL_PHASE2:-}
+      EVAL_WORLDS: ${EVAL_WORLDS:-}
+    volumes:
+      # optional end-of-battle jingles you put on the server yourself (not in git)
+      - ./public/audio:/app/dist/audio:ro
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
