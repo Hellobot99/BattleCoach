@@ -17,7 +17,7 @@
   --msg: rgba(16, 24, 38, .86);
   --hp-ok: #33b04b; --hp-warn: #e2a91a; --hp-low: #e0453a;
   --g-brill: #1a9e94; --g-great: #3a78c2; --g-best: #4f9a2e; --g-exc: #79a83a;
-  --g-good: #7d8794; --g-inacc: #c99a12; --g-mist: #dd7a1d; --g-blund: #cc3b2e;
+  --g-good: #7d8794; --g-inacc: #c99a12; --g-mist: #dd7a1d; --g-blund: #cc3b2e; --g-miss: #b3407f;
   --f-display: 'Do Hyeon', 'Noto Sans KR', system-ui, sans-serif;
   --f-body: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
   --f-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
@@ -33,7 +33,7 @@
     --hud: rgba(21, 28, 39, .9); --msg: rgba(6, 10, 16, .88);
     --hp-ok: #4fcf63; --hp-warn: #f0bf3c; --hp-low: #f26759;
     --g-brill: #35c4b8; --g-great: #6aa3e8; --g-best: #7cc451; --g-exc: #a2c95f;
-    --g-good: #9aa4b1; --g-inacc: #e8bb3c; --g-mist: #f0954a; --g-blund: #f0685a;
+    --g-good: #9aa4b1; --g-inacc: #e8bb3c; --g-mist: #f0954a; --g-blund: #f0685a; --g-miss: #e26aa8;
     color-scheme: dark;
   }
 }
@@ -45,7 +45,7 @@
   --hud: rgba(21, 28, 39, .9); --msg: rgba(6, 10, 16, .88);
   --hp-ok: #4fcf63; --hp-warn: #f0bf3c; --hp-low: #f26759;
   --g-brill: #35c4b8; --g-great: #6aa3e8; --g-best: #7cc451; --g-exc: #a2c95f;
-  --g-good: #9aa4b1; --g-inacc: #e8bb3c; --g-mist: #f0954a; --g-blund: #f0685a;
+  --g-good: #9aa4b1; --g-inacc: #e8bb3c; --g-mist: #f0954a; --g-blund: #f0685a; --g-miss: #e26aa8;
   color-scheme: dark;
 }
 
@@ -131,6 +131,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .g-inacc { color: var(--g-inacc); } .g-inacc i { background: var(--g-inacc); }
 .g-mist { color: var(--g-mist); } .g-mist i { background: var(--g-mist); }
 .g-blund { color: var(--g-blund); } .g-blund i { background: var(--g-blund); }
+.g-miss { color: var(--g-miss); } .g-miss i { background: var(--g-miss); }
 
 .sprite { image-rendering: pixelated; object-fit: contain; display: block; }
 .sprite.dim { filter: grayscale(1); opacity: .45; }
@@ -446,6 +447,12 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .alt .loss { font: 700 12px var(--f-mono); color: var(--g-mist); margin-left: auto; }
 .cc-brill .coach-face { border-color: var(--g-brill); } .cc-great .coach-face { border-color: var(--g-great); }
 .cc-mist .coach-face, .cc-blund .coach-face { border-color: var(--g-mist); }
+.cc-miss .coach-face { border-color: var(--g-miss); }
+.feedback-link { font-size: 12px; color: var(--muted); align-self: flex-start; margin-top: 2px; }
+.feedback-form { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+.feedback-form input { flex: 1 1 180px; min-width: 0; font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.feedback-form button { padding: 6px 12px; font-size: 13px; }
+.feedback-done { font-size: 12.5px; color: var(--muted); margin: 2px 0 0; }
 .hints { margin: 0; padding-left: 20px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
 .log-panel summary { list-style: none; cursor: pointer; display: flex; }
 .log-panel summary::-webkit-details-marker { display: none; }
@@ -478,7 +485,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .graph .dot { fill: var(--g-good); stroke: var(--paper); stroke-width: 2; cursor: pointer; }
 .graph .dot.g-brill { fill: var(--g-brill); } .graph .dot.g-great { fill: var(--g-great); } .graph .dot.g-best { fill: var(--g-best); }
 .graph .dot.g-exc { fill: var(--g-exc); } .graph .dot.g-inacc { fill: var(--g-inacc); } .graph .dot.g-mist { fill: var(--g-mist); }
-.graph .dot.g-blund { fill: var(--g-blund); }
+.graph .dot.g-blund { fill: var(--g-blund); } .graph .dot.g-miss { fill: var(--g-miss); }
 .graph .dot.sel { stroke: var(--ink); stroke-width: 2.5; }
 .weak { font-size: 14px; }
 .timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -667,6 +674,12 @@ button.hud-top:focus-visible { outline: 2px solid var(--accent); outline-offset:
 
 /* level grid (퍼즐 단계) */
 .level-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px; align-items: start; }
+.level-pick { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.chapter-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.chapter-tab { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.chapter-tab b { font-size: 14px; }
+.chapter-tab small { font: 11px var(--f-mono); color: var(--muted); white-space: nowrap; }
+.chapter-tab.on { border-color: var(--accent); background: var(--accent-soft); }
 .level-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .level-tile { width: 100%; aspect-ratio: 1; border-radius: 14px; border: 2px solid var(--line); background: var(--paper); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; box-shadow: var(--shadow); transition: transform .12s, border-color .12s; }
 .level-tile b { font: 400 26px/1 var(--f-display); }

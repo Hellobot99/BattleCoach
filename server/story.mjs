@@ -10,7 +10,7 @@ const LEVELS = JSON.parse(readFileSync(new URL('./data/puzzles.json', import.met
 
 const AI_TEXT = l =>
   l.ai === 1 ? (l.noise > 0 ? '가끔 실수하는 상대' : '가장 센 기술만 쓰는 상대') : l.ai === 2 ? '불리하면 교체하고 상태이상도 쓰는 상대' : '코치처럼 수를 계산하는 상대';
-const GAP_TEXT = g => (g >= 3 ? '내 팀이 확실히 강해요' : g >= 1 ? '내 팀이 조금 강해요' : g === 0 ? '두 팀 전력이 비슷해요' : g >= -2 ? '상대 팀이 조금 강해요' : '상대 팀이 확실히 강해요');
+const GAP_TEXT = g => (g >= 3 ? '내 팀이 확실히 강해요' : g >= 1 ? '내 팀이 조금 강해요' : g > -1 ? '두 팀 전력이 비슷해요' : g >= -2.5 ? '상대 팀이 조금 강해요' : '상대 팀이 확실히 강해요');
 
 /** What changes at this level compared with the one before. */
 function note(i) {

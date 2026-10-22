@@ -2,7 +2,7 @@ export type Format = '3v3' | '6v6';
 export type Coaching = 'beginner' | 'real' | 'review';
 
 export type GradeKey =
-  | 'brill' | 'great' | 'best' | 'exc' | 'good' | 'inacc' | 'mist' | 'blund'
+  | 'brill' | 'great' | 'best' | 'exc' | 'good' | 'inacc' | 'mist' | 'blund' | 'miss'
   | 'only' | 'any' | 'decided' | 'timeout';
 
 export interface MyMon {

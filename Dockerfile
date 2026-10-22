@@ -13,6 +13,8 @@ COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
+# 「이 평가가 이상해요」 reports; docker-compose.yml keeps this folder in a volume
+RUN mkdir -p /app/feedback && chown node:node /app/feedback
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s CMD node -e "fetch('http://localhost:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 USER node

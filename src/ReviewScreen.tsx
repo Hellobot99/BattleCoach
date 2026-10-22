@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { GameState, GradeKey } from './types';
+import { api } from './api';
 import { CoachCard } from './Battle';
 import { GradeChip, TAG_LESSON } from './ui';
 import { starsFor } from './progress';
@@ -13,6 +14,7 @@ const ORDER: { key: GradeKey; label: string; sym: string }[] = [
   { key: 'inacc', label: '부정확', sym: '?!' },
   { key: 'mist', label: '실수', sym: '?' },
   { key: 'blund', label: '블런더', sym: '??' },
+  { key: 'miss', label: '놓친 기회', sym: '✕' },
 ];
 
 export function ReviewScreen({ state, onAgain, onLobby, onRetry, onBackToOriginal, onNextStage }: {
@@ -93,7 +95,7 @@ export function ReviewScreen({ state, onAgain, onLobby, onRetry, onBackToOrigina
               </button>
             )}
           </div>
-          <CoachCard r={reviews[sel]} />
+          <CoachCard key={sel} r={reviews[sel]} onFeedback={note => api.feedback(state.id, sel, note)} />
         </section>
       )}
 

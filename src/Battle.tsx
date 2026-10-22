@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { api } from './api';
 import { Field } from './Field';
 import { InfoSheet } from './InfoSheet';
 import { TypeCalc } from './TypeCalc';
@@ -187,7 +188,11 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated, onBackToRevi
               <h3>코치</h3>
               {busy && <span className="thinking">계산 중</span>}
             </div>
-            {last ? <CoachCard r={last} /> : <p className="muted">첫 턴을 고르면 등급과 이유를 알려 줘요.</p>}
+            {last ? (
+              <CoachCard key={state.reviews.lastIndexOf(last)} r={last} onFeedback={note => api.feedback(state.id, state.reviews.lastIndexOf(last), note)} />
+            ) : (
+              <p className="muted">첫 턴을 고르면 등급과 이유를 알려 줘요.</p>
+            )}
           </section>
         )}
         <Log log={state.log} upTo={playing ? seenLog : state.log.length} />
@@ -382,7 +387,7 @@ function MoveButton({ c, showEff, disabled, onClick, onHover }: { c: Choice; sho
   );
 }
 
-export function CoachCard({ r }: { r: Review }) {
+export function CoachCard({ r, onFeedback }: { r: Review; onFeedback?: (note: string) => Promise<unknown> }) {
   const showBest = r.graded && r.dW > 1 && r.bestLabel !== r.choiceLabel;
   return (
     <div className={`coach-card cc-${r.grade}`}>
@@ -405,6 +410,7 @@ export function CoachCard({ r }: { r: Review }) {
             <span className="loss">−{r.dW}%p</span>
           </p>
         )}
+        {onFeedback && r.graded && <FeedbackLink onSend={onFeedback} />}
       </div>
     </div>
   );
@@ -451,5 +457,30 @@ function Countdown({ onTimeout, paused }: { onTimeout: () => void; paused: boole
     <span className={`countdown${left <= 10 ? ' low' : ''}`} aria-live="off">
       {left}초
     </span>
+  );
+}
+
+/** 「이 평가가 이상해요」: sends the turn (and an optional note) to the server for checking the grades. */
+function FeedbackLink({ onSend }: { onSend: (note: string) => Promise<unknown> }) {
+  const [step, setStep] = useState<'idle' | 'open' | 'sending' | 'sent' | 'failed'>('idle');
+  const [note, setNote] = useState('');
+  if (step === 'sent') return <p className="feedback-done">보냈어요. 등급 기준을 다듬는 데 쓸게요.</p>;
+  if (step === 'idle')
+    return (
+      <button className="link feedback-link" onClick={() => setStep('open')}>
+        이 평가가 이상해요
+      </button>
+    );
+  const send = () => {
+    setStep('sending');
+    onSend(note.trim()).then(() => setStep('sent'), () => setStep('failed'));
+  };
+  return (
+    <form className="feedback-form" onSubmit={e => { e.preventDefault(); send(); }}>
+      <input value={note} onChange={e => setNote(e.target.value)} maxLength={300} placeholder="어디가 이상한지 (안 써도 돼요)" aria-label="의견" autoFocus />
+      <button className="primary" disabled={step === 'sending'}>보내기</button>
+      <button type="button" className="ghost" onClick={() => setStep('idle')}>취소</button>
+      {step === 'failed' && <span className="error small">보내지 못했어요.</span>}
+    </form>
   );
 }

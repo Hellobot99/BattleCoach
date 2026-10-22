@@ -10,6 +10,7 @@ export const GRADES = {
   inacc: { label: '부정확', sym: '?!' },
   mist: { label: '실수', sym: '?' },
   blund: { label: '블런더', sym: '??' },
+  miss: { label: '놓친 기회', sym: '✕' },
   only: { label: '유일한 수', sym: '–' },
   any: { label: '어느 쪽이든', sym: '≈' },
   decided: { label: '승부 결정', sym: '–' },
@@ -18,11 +19,17 @@ export const GRADES = {
 
 const pct = x => Math.round(x * 100);
 
+// 「놓친 기회」: a weak choice (worse than 무난) right when a big chance was there
+const CHANCE_OPENED = 0.12; // the best win rate rose this much since the last decision (the opponent slipped, or luck)
+const CHANCE_KO = 0.6; // or the best move would have knocked the opponent out this often…
+const CHANCE_KO_LOST = 0.4; // …and the chosen action gave up at least this much of that chance
+
 /**
  * choices: legal choices with labels (from policy.legalChoices) plus `eff` for moves.
  * ev: evaluator result. chosen: the choice string played. naive: what the level-1 AI would play.
+ * prevBestW: the best win rate at the previous decision (null on the first one).
  */
-export function gradeTurn({ choices, ev, chosen, naive, foeName, myName }) {
+export function gradeTurn({ choices, ev, chosen, naive, foeName, myName, prevBestW = null }) {
   const byChoice = Object.fromEntries(choices.map(c => [c.choice, c]));
   const entries = choices.map(c => ({ c, a: ev.actions[c.choice] })).filter(x => x.a);
   entries.sort((x, y) => y.a.W - x.a.W);
@@ -49,10 +56,19 @@ export function gradeTurn({ choices, ev, chosen, naive, foeName, myName }) {
   else if (dW <= 25) grade = 'mist';
   else grade = 'blund';
 
+  let chance = null;
+  if (['inacc', 'mist', 'blund'].includes(grade)) {
+    const opened = prevBestW !== null ? bestW - prevBestW : 0;
+    if (bestE.c.kind === 'move' && bestE.a.ko >= CHANCE_KO && chosenE.a.ko <= bestE.a.ko - CHANCE_KO_LOST) chance = 'ko';
+    else if (opened >= CHANCE_OPENED) chance = { opened };
+    if (chance) grade = 'miss';
+  }
+
   const graded = !['only', 'any', 'decided'].includes(grade);
   const lines = graded
     ? reasonLines({ grade, chosenE, bestE, entries, byChoice, foeName, myName })
     : { tags: [], reason: '', detail: `승률 추정 ${pct(chosenE.a.W)}%` };
+  if (chance && chance !== 'ko') lines.reason = `직전보다 이길 확률이 ${Math.round(chance.opened * 100)}%p 올라간 턴이었어요. ${lines.reason}`;
   return {
     grade,
     graded,
@@ -64,7 +80,7 @@ export function gradeTurn({ choices, ev, chosen, naive, foeName, myName }) {
     bestLabel: bestE.c.label,
     bestChoice: bestE.c.choice,
     tags: lines.tags,
-    headline: headline(grade),
+    headline: chance === 'ko' ? '쓰러뜨릴 기회를 놓쳤어요.' : headline(grade),
     reason: lines.reason,
     detail: lines.detail,
   };
@@ -80,6 +96,7 @@ function headline(grade) {
     inacc: '조금 아쉬운 선택이에요.',
     mist: '더 좋은 수가 분명히 있었어요.',
     blund: '큰 손해를 본 선택이에요.',
+    miss: '상대가 빈틈을 보였는데 살리지 못했어요.',
     only: '고를 수 있는 행동이 하나뿐이었어요.',
     any: '어느 쪽을 골라도 비슷했어요.',
     decided: '이미 승부가 거의 정해진 턴이에요.',
@@ -198,7 +215,7 @@ export function summarize(reviews) {
   }
   turning.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
   const tagCount = {};
-  for (const r of reviews) if (['inacc', 'mist', 'blund'].includes(r.grade)) for (const t of r.tags || []) tagCount[t] = (tagCount[t] || 0) + 1;
+  for (const r of reviews) if (['inacc', 'mist', 'blund', 'miss'].includes(r.grade)) for (const t of r.tags || []) tagCount[t] = (tagCount[t] || 0) + 1;
   const weakTag = Object.entries(tagCount).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
   return { accuracy, counts, turning: turning.slice(0, 3), weakTag, hints: reviews.filter(r => r.hinted).length, timeouts: reviews.filter(r => r.timeout).length };
 }

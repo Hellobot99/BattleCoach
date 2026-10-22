@@ -1,39 +1,38 @@
 // Builds server/data/puzzles.json: numbered puzzle levels with rising difficulty.
 // For each level it makes candidate team pairs, lets a decent rule-based AI play the player's side many times,
 // and keeps the pair whose win rate is closest to the level's target. Run: npm run puzzles
-import { writeFileSync } from 'node:fs';
+// (npm run puzzles -- --retune searches again only for the levels that ended up more than 5 points off target)
+import { readFileSync, writeFileSync } from 'node:fs';
 import { Battle, Dex, STORY_FORMAT, mulberry32, toID } from '../server/showdown.mjs';
 import { aiChoose } from '../server/policy.mjs';
 import { setStats } from '../server/determinize.mjs';
 
-const CANDIDATES = 20; // team pairs tried per level
+const CANDIDATES = 24; // team pairs tried per level
 const GAMES = 30; // first screening games per pair
 const FINALISTS = 4; // pairs re-checked more closely
-const FINAL_GAMES = 120; // games per finalist
+const FINAL_GAMES = 100; // games per finalist
 
-// level: opponent AI, its random-move rate, help for the player, team strength gap (+ = player stronger), target win rate
-const LEVELS = [
-  { ai: 1, noise: 0.25, coaching: 'beginner', hints: null, timer: false, gap: 5, target: 0.92 },
-  { ai: 1, noise: 0.15, coaching: 'beginner', hints: null, timer: false, gap: 4, target: 0.88 },
-  { ai: 1, noise: 0.05, coaching: 'beginner', hints: null, timer: false, gap: 3, target: 0.84 },
-  { ai: 1, noise: 0, coaching: 'beginner', hints: null, timer: false, gap: 2, target: 0.8 },
-  { ai: 2, noise: 0.04, coaching: 'beginner', hints: null, timer: false, gap: 2, target: 0.75 },
-  { ai: 2, noise: 0.04, coaching: 'beginner', hints: 8, timer: false, gap: 1, target: 0.7 },
-  { ai: 2, noise: 0.04, coaching: 'beginner', hints: 6, timer: false, gap: 1, target: 0.66 },
-  { ai: 2, noise: 0.04, coaching: 'beginner', hints: 5, timer: false, gap: 0, target: 0.62 },
-  { ai: 2, noise: 0.02, coaching: 'real', hints: 5, timer: false, gap: 0, target: 0.58 },
-  { ai: 2, noise: 0, coaching: 'real', hints: 4, timer: false, gap: 0, target: 0.55 },
-  { ai: 3, noise: 0, coaching: 'real', hints: 4, timer: false, gap: 0, target: 0.55 },
-  { ai: 3, noise: 0, coaching: 'real', hints: 3, timer: false, gap: 0, target: 0.52 },
-  { ai: 3, noise: 0, coaching: 'real', hints: 3, timer: false, gap: -1, target: 0.5 },
-  { ai: 3, noise: 0, coaching: 'real', hints: 3, timer: false, gap: -1, target: 0.48 },
-  { ai: 3, noise: 0, coaching: 'real', hints: 2, timer: false, gap: -2, target: 0.45 },
-  { ai: 3, noise: 0, coaching: 'real', hints: 2, timer: true, gap: -2, target: 0.43 },
-  { ai: 3, noise: 0, coaching: 'real', hints: 2, timer: true, gap: -3, target: 0.4 },
-  { ai: 3, noise: 0, coaching: 'real', hints: 1, timer: true, gap: -3, target: 0.38 },
-  { ai: 3, noise: 0, coaching: 'real', hints: 1, timer: true, gap: -4, target: 0.35 },
-  { ai: 3, noise: 0, coaching: 'real', hints: 0, timer: true, gap: -4, target: 0.32 },
-];
+// 100 levels in five stretches of 20. Each stretch changes one or two things, the rest moves smoothly:
+//   1-20 level-1 AI stops making mistakes, my team strong          21-40 level-2 AI, hints start running out
+//   41-60 type/speed help turns off, even teams                    61-80 level-3 AI, the opponent's team gets stronger
+//   81-100 45-second turns, hints run out, clearly weaker team
+const TOTAL = 100;
+const lerp = (a, b, t) => a + (b - a) * t;
+const half = x => Math.round(x * 2) / 2;
+function levelAt(i) {
+  const n = i + 1;
+  const t = i / (TOTAL - 1);
+  const within = (from, to) => (n - from) / (to - from); // 0..1 inside a stretch
+  const ai = n <= 20 ? 1 : n <= 60 ? 2 : 3;
+  const noise = n <= 20 ? Math.round(lerp(0.25, 0, within(1, 20)) * 100) / 100 : n <= 40 ? Math.round(lerp(0.06, 0, within(21, 40)) * 100) / 100 : 0;
+  const coaching = n <= 40 ? 'beginner' : 'real';
+  const hints = n <= 25 ? null : n <= 40 ? Math.round(lerp(8, 5, within(26, 40))) : n <= 80 ? Math.round(lerp(5, 2, within(41, 80))) : Math.round(lerp(2, 0, within(81, 100)));
+  const timer = n > 80;
+  const gap = half(n <= 40 ? lerp(5, 1, within(1, 40)) : n <= 60 ? lerp(1, 0, within(41, 60)) : lerp(0, -4.5, within(61, 100)));
+  const target = Math.round(lerp(0.93, 0.3, t) * 100) / 100;
+  return { ai, noise, coaching, hints, timer, gap, target };
+}
+const LEVELS = Array.from({ length: TOTAL }, (_, i) => levelAt(i));
 
 const db = setStats('champions');
 const STATS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
@@ -103,13 +102,18 @@ function simulate(me, foe, lv, games, seed) {
   return wins / games;
 }
 
-const out = [];
-const t0 = Date.now();
-let prevWin = 1;
-LEVELS.forEach((lv, i) => {
+const OUT = new URL('../server/data/puzzles.json', import.meta.url);
+// --retune: keep server/data/puzzles.json and search again, harder, only for levels more than 5 points off target
+const RETUNE = process.argv.includes('--retune');
+const OFF = 0.05;
+const teamKey = t => t.map(s => s.species).sort().join('/');
+const byTarget = lv => (a, b) => Math.abs(a.win - lv.target) - Math.abs(b.win - lv.target);
+
+/** Tries `count` candidate pairs for level i and returns the best one (closest to target, not easier than prevWin). */
+function search(i, lv, { prevWin, usedTeams, count, round = 0 }) {
   const cands = [];
-  for (let c = 0; c < CANDIDATES; c++) {
-    const rand = mulberry32((i + 1) * 104729 + c * 7);
+  for (let c = 0; c < count; c++) {
+    const rand = mulberry32((i + 1) * 104729 + c * 7 + round * 7919);
     const avoid = new Set();
     // the gap splits around the middle of the level range
     const meTeam = pickTeam(rand, MID - lv.gap / 2, avoid);
@@ -117,18 +121,45 @@ LEVELS.forEach((lv, i) => {
     if (meTeam.length < 3 || foeTeam.length < 3) continue;
     const me = meTeam.map(toSet);
     const foe = foeTeam.map(toSet);
-    cands.push({ me, foe, win: simulate(me, foe, lv, GAMES, (i + 1) * 1000 + c) });
+    if (usedTeams.has(teamKey(me)) || usedTeams.has(teamKey(foe))) continue;
+    cands.push({ me, foe, win: simulate(me, foe, lv, GAMES, (i + 1) * 1000 + c + round * 100) });
   }
-  // re-check the closest few with many more games; a level must not be easier than the one before
-  cands.sort((a, b) => Math.abs(a.win - lv.target) - Math.abs(b.win - lv.target));
-  const finals = cands.slice(0, FINALISTS).map((c, k) => ({ ...c, win: simulate(c.me, c.foe, lv, FINAL_GAMES, (i + 1) * 5000 + k) }));
+  // re-check the closest few with many more games
+  cands.sort(byTarget(lv));
+  const finals = cands.slice(0, FINALISTS).map((c, k) => ({ ...c, win: simulate(c.me, c.foe, lv, FINAL_GAMES, (i + 1) * 5000 + k + round * 100) }));
   // closest to the target wins; among pairs within 6 points of it, prefer one not easier than the previous level
-  const byTarget = (a, b) => Math.abs(a.win - lv.target) - Math.abs(b.win - lv.target);
   const near = finals.filter(c => Math.abs(c.win - lv.target) <= 0.06 && c.win <= prevWin + 0.02);
-  const best = (near.length ? near : finals).sort(byTarget)[0];
-  prevWin = best.win;
-  out.push({ level: i + 1, ...lv, simWin: Math.round(best.win * 100) / 100, me: best.me, foe: best.foe });
-  console.log(`${String(i + 1).padStart(2)}단계  AI${lv.ai}  목표 ${Math.round(lv.target * 100)}%  시뮬 ${Math.round(best.win * 100)}%  나: ${best.me.map(s => s.species).join(', ')}  /  상대: ${best.foe.map(s => s.species).join(', ')}`);
-});
-writeFileSync(new URL('../server/data/puzzles.json', import.meta.url), JSON.stringify(out));
+  return (near.length ? near : finals).sort(byTarget(lv))[0];
+}
+
+const line = (n, lv, best) =>
+  `${String(n).padStart(3)}단계  AI${lv.ai}  목표 ${Math.round(lv.target * 100)}%  시뮬 ${Math.round(best.win * 100)}%  나: ${best.me.map(s => s.species).join(', ')}  /  상대: ${best.foe.map(s => s.species).join(', ')}`;
+const t0 = Date.now();
+let out = [];
+if (RETUNE) {
+  out = JSON.parse(readFileSync(OUT, 'utf8'));
+  const usedTeams = new Set(out.flatMap(l => [teamKey(l.me), teamKey(l.foe)]));
+  out.forEach((l, i) => {
+    const lv = LEVELS[i];
+    if (Math.abs(l.simWin - lv.target) <= OFF) return;
+    const best = search(i, lv, { prevWin: i ? out[i - 1].simWin : 1, usedTeams, count: CANDIDATES * 3, round: 1 });
+    if (Math.abs(best.win - lv.target) >= Math.abs(l.simWin - lv.target)) return console.log(`${String(i + 1).padStart(3)}단계  그대로 (시뮬 ${Math.round(l.simWin * 100)}%, 새 후보 ${Math.round(best.win * 100)}%)`);
+    usedTeams.delete(teamKey(l.me));
+    usedTeams.delete(teamKey(l.foe));
+    usedTeams.add(teamKey(best.me)).add(teamKey(best.foe));
+    out[i] = { level: i + 1, ...lv, simWin: Math.round(best.win * 100) / 100, me: best.me, foe: best.foe };
+    console.log(`${line(i + 1, lv, best)}  (전 ${Math.round(l.simWin * 100)}%)`);
+  });
+} else {
+  let prevWin = 1;
+  const usedTeams = new Set(); // a team (as a set of three) appears in one level only
+  LEVELS.forEach((lv, i) => {
+    const best = search(i, lv, { prevWin, usedTeams, count: CANDIDATES });
+    prevWin = best.win;
+    usedTeams.add(teamKey(best.me)).add(teamKey(best.foe));
+    out.push({ level: i + 1, ...lv, simWin: Math.round(best.win * 100) / 100, me: best.me, foe: best.foe });
+    console.log(line(i + 1, lv, best));
+  });
+}
+writeFileSync(OUT, JSON.stringify(out));
 console.log(`wrote server/data/puzzles.json (${((Date.now() - t0) / 1000).toFixed(0)}s)`);

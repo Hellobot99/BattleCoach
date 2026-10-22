@@ -10,7 +10,8 @@
     "ko-names": "node scripts/build-ko-names.mjs",
     "set-stats": "node scripts/build-set-stats.mjs",
     "puzzles": "node scripts/build-puzzles.mjs",
-    "start": "node server/prod.mjs"
+    "start": "node server/prod.mjs",
+    "stability": "node scripts/grade-stability.mjs"
   },
   "dependencies": {
     "@pkmn/sim": "^0.10.11",

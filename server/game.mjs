@@ -7,6 +7,7 @@ import { setStats, fits } from './determinize.mjs';
 import { gradeTurn, hintFor, summarize, GRADES } from './coach.mjs';
 import { eun, eul, iga } from './korean.mjs';
 import { STORY_FORMAT, storyStage, storyTeams } from './story.mjs';
+import { saveFeedback } from './feedback.mjs';
 import { koMove, koItem, koAbility, koSpecies, koType, moveDesc, abilityDesc, itemDesc, TYPE_KO } from './names.mjs';
 
 const STATUS = { brn: '화상', par: '마비', slp: '잠듦', psn: '독', tox: '맹독', frz: '얼음' };
@@ -140,7 +141,7 @@ class Game {
     g.logCursor = g.battle.log.length;
     g.decision = {
       kind: snap.kind, turn: snap.turn, choices: snap.choices, ev: snap.ev, evalPromise: Promise.resolve(snap.ev),
-      naive: snap.naive, hintLevel: 0, hinted: false, json: snap.json, logLen: snap.logLen, foeSeen: snap.foeSeen, lastEvalBefore: snap.lastEval,
+      naive: snap.naive, hintLevel: 0, hinted: false, json: snap.json, hidden: snap.hidden, logLen: snap.logLen, foeSeen: snap.foeSeen, lastEvalBefore: snap.lastEval,
     };
     return g;
   }
@@ -186,12 +187,18 @@ class Game {
     }
     if (choices.length >= 2) {
       const json = JSON.stringify(b.toJSON());
-      Object.assign(d, { json, logLen: this.log.length, foeSeen: cloneSeen(this.foeSeen), lastEvalBefore: this.lastEval });
-      d.evalPromise = evaluate(json, 'p1', choices.map(c => c.choice), this.hiddenInfo()).then(ev => {
+      const hidden = this.hiddenInfo();
+      Object.assign(d, { json, hidden, logLen: this.log.length, foeSeen: cloneSeen(this.foeSeen), lastEvalBefore: this.lastEval });
+      const take = ev => {
         d.ev = ev;
         this.lastEval = { bestW: Math.max(...Object.values(ev.actions).map(a => a.W)), ms: ev.ms, rollouts: ev.rollouts };
         return ev;
-      });
+      };
+      // keeps refining while the player thinks; grading uses whatever d.ev holds when they choose
+      d.evalPromise = evaluate(json, 'p1', choices.map(c => c.choice), hidden, {
+        onRefine: ev => !d.chosen && take(ev),
+        stopped: () => d.chosen || this.decision !== d,
+      }).then(take);
       d.evalPromise.catch(err => console.error('[evaluate]', err));
     }
     this.decision = d;
@@ -236,10 +243,15 @@ class Game {
 
     let review = null;
     if (d.evalPromise) {
-      const ev = await d.evalPromise;
+      await d.evalPromise;
+      d.chosen = true;
+      const ev = d.ev;
       const me = b.p1.active[0];
       const foe = b.p2.active[0];
-      review = gradeTurn({ choices: d.choices, ev, chosen: choice, naive: d.naive, foeName: foe ? koSpecies(foe.species.name) : '?', myName: me ? koSpecies(me.species.name) : '?' });
+      review = gradeTurn({
+        choices: d.choices, ev, chosen: choice, naive: d.naive, prevBestW: d.lastEvalBefore?.bestW ?? null,
+        foeName: foe ? koSpecies(foe.species.name) : '?', myName: me ? koSpecies(me.species.name) : '?',
+      });
     } else {
       review = { grade: 'only', graded: false, score: null, dW: 0, W: this.lastEval?.bestW ?? 0.5, bestW: this.lastEval?.bestW ?? 0.5, choiceLabel: picked.label, bestLabel: picked.label, tags: [], headline: '고를 수 있는 행동이 하나뿐이었어요.', reason: '', detail: '' };
     }
@@ -267,13 +279,29 @@ class Game {
     this.reviews.push(review);
     if (d.json && d.ev) {
       this.snapshots[this.reviews.length - 1] = {
-        json: d.json, logLen: d.logLen, foeSeen: d.foeSeen, lastEval: d.lastEvalBefore, ev: d.ev,
+        json: d.json, hidden: d.hidden, logLen: d.logLen, foeSeen: d.foeSeen, lastEval: d.lastEvalBefore, ev: d.ev,
         choices: d.choices, naive: d.naive, kind: d.kind, turn: d.turn, aiChoice: aiChoice || null,
       };
-      review.retryable = ['inacc', 'mist', 'blund'].includes(review.grade);
+      review.retryable = ['inacc', 'mist', 'blund', 'miss'].includes(review.grade);
     }
     this.consumeLog();
     this.prepareDecision();
+  }
+
+  /** Saves a player's 「이 평가가 이상해요」 for review `index`, once per turn. */
+  feedback(index, note = '') {
+    const r = this.reviews[index];
+    if (!r) throw new Error('그 턴을 찾을 수 없어요.');
+    this.feedbackSent ||= new Set();
+    if (this.feedbackSent.has(index)) return false;
+    this.feedbackSent.add(index);
+    const snap = this.snapshots[index];
+    saveFeedback({
+      game: this.id, format: this.format, story: this.story?.id || null, index, note: String(note).slice(0, 300),
+      review: { turn: r.turn, grade: r.grade, gradeLabel: r.gradeLabel, dW: r.dW, choiceLabel: r.choiceLabel, bestLabel: r.bestLabel, hinted: r.hinted },
+      ...(snap ? { position: snap.json, hidden: snap.hidden, prevBestW: snap.lastEval?.bestW ?? null, choices: snap.choices, actions: snap.ev.actions } : {}),
+    });
+    return true;
   }
 
   async hint() {
@@ -281,7 +309,8 @@ class Game {
     if (!d || d.kind === 'preview' || !d.evalPromise) return { level: 0, text: '지금은 힌트가 필요 없는 턴이에요.' };
     if (this.hintLimit !== null && this.hintsUsed >= this.hintLimit) return { level: d.hintLevel, text: `이 단계의 힌트 ${this.hintLimit}번을 다 썼어요.` };
     this.hintsUsed++;
-    const ev = await d.evalPromise;
+    await d.evalPromise;
+    const ev = d.ev;
     d.hintLevel = Math.min(3, d.hintLevel + 1);
     d.hinted = true;
     const me = this.battle.p1.active[0];

@@ -7,6 +7,7 @@ import { GradeChip } from './ui';
 const GRADES: [GradeKey, string, string][] = [
   ['brill', '!!', '묘수'], ['great', '!', '좋은 수'], ['best', '★', '최선'], ['exc', '✓', '우수'],
   ['good', '·', '무난'], ['inacc', '?!', '부정확'], ['mist', '?', '실수'], ['blund', '??', '블런더'],
+  ['miss', '✕', '놓친 기회'],
 ];
 
 export interface LobbyOptions {

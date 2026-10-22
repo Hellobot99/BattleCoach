@@ -18,6 +18,8 @@ export const api = {
   choose: (id: string, choice: string, timeout = false) =>
     call<GameState>(`/games/${id}/choose`, { method: 'POST', body: JSON.stringify({ choice, timeout }) }),
   retry: (id: string, index: number) => call<GameState>(`/games/${id}/retry`, { method: 'POST', body: JSON.stringify({ index }) }),
+  feedback: (id: string, index: number, note: string) =>
+    call<{ saved: boolean }>(`/games/${id}/feedback`, { method: 'POST', body: JSON.stringify({ index, note }) }),
   hint: (id: string) =>
     call<{ hint: { level: number; text: string }; state: GameState }>(`/games/${id}/hint`, { method: 'POST' }),
 };

@@ -14,18 +14,25 @@ function Stars({ n, big = false }: { n: number; big?: boolean }) {
   );
 }
 
+// levels are shown 20 at a time; each stretch matches a step in scripts/build-puzzles.mjs
+const PER_CHAPTER = 20;
+const CHAPTERS = ['입문', '기초', '실전', '고수', '마스터'];
+
 /** 퍼즐: numbered levels, each unlocked by clearing the one before. */
 export function Story({ onStart, onBack, busy }: { onStart: (id: string) => void; onBack: () => void; busy: boolean }) {
   const [levels, setLevels] = useState<StoryStage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<string | null>(null);
+  const [chapter, setChapter] = useState(0);
   const progress = loadProgress();
 
   useEffect(() => {
     api.story().then(list => {
       setLevels(list);
       // open on the first level not cleared yet
-      setSel((list.find(l => !progress[l.id]) || list[list.length - 1]).id);
+      const first = list.find(l => !progress[l.id]) || list[list.length - 1];
+      setSel(first.id);
+      setChapter(Math.floor((first.no - 1) / PER_CHAPTER));
     }, e => setError(String(e.message || e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -61,32 +68,51 @@ export function Story({ onStart, onBack, busy }: { onStart: (id: string) => void
 
       {levels && (
         <div className="level-layout">
-          <ol className="level-grid" aria-label="단계">
-            {levels.map((l, i) => {
-              const st = progress[l.id] || 0;
-              const o = isOpen(i);
-              return (
-                <li key={l.id}>
-                  <button
-                    className={`level-tile${l.id === sel ? ' on' : ''}${o ? '' : ' locked'}${st ? ' cleared' : ''} ai-${l.ai}`}
-                    onClick={() => setSel(l.id)}
-                    aria-pressed={l.id === sel}
-                    aria-label={`${l.no}단계${o ? '' : ' (잠김)'}`}
-                  >
-                    <b>{l.no}</b>
-                    {o ? (
-                      <Stars n={st} />
-                    ) : (
-                      <svg className="lock" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-                        <rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" />
-                        <path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-                      </svg>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
+          <div className="level-pick">
+            {levels.length > PER_CHAPTER && (
+              <div className="chapter-tabs" role="tablist" aria-label="단계 묶음">
+                {Array.from({ length: Math.ceil(levels.length / PER_CHAPTER) }, (_, c) => {
+                  const part = levels.slice(c * PER_CHAPTER, (c + 1) * PER_CHAPTER);
+                  const done = part.filter(l => progress[l.id]).length;
+                  return (
+                    <button key={c} role="tab" aria-selected={chapter === c} className={`chapter-tab${chapter === c ? ' on' : ''}`} onClick={() => setChapter(c)}>
+                      <b>{CHAPTERS[c] || `${c + 1}장`}</b>
+                      <small>
+                        {part[0].no}~{part[part.length - 1].no} · {done}/{part.length}
+                      </small>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <ol className="level-grid" aria-label="단계">
+              {levels.map((l, i) => {
+                if (Math.floor(i / PER_CHAPTER) !== chapter) return null;
+                const st = progress[l.id] || 0;
+                const o = isOpen(i);
+                return (
+                  <li key={l.id}>
+                    <button
+                      className={`level-tile${l.id === sel ? ' on' : ''}${o ? '' : ' locked'}${st ? ' cleared' : ''} ai-${l.ai}`}
+                      onClick={() => setSel(l.id)}
+                      aria-pressed={l.id === sel}
+                      aria-label={`${l.no}단계${o ? '' : ' (잠김)'}`}
+                    >
+                      <b>{l.no}</b>
+                      {o ? (
+                        <Stars n={st} />
+                      ) : (
+                        <svg className="lock" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                          <rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" />
+                          <path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                        </svg>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
 
           {cur && (
             <section className="level-detail" aria-live="polite">

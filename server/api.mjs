@@ -67,6 +67,10 @@ export async function handle(req, res) {
     const body = await readBody(req);
     return send(res, 200, retryGame(game.id, body.index).state());
   }
+  if (parts[2] === 'feedback' && req.method === 'POST') {
+    const body = await readBody(req);
+    return send(res, 200, { saved: game.feedback(Number(body.index), body.note || '') });
+  }
   if (parts[2] === 'hint' && req.method === 'POST') {
     const hint = await game.hint();
     return send(res, 200, { hint, state: game.state() });
