@@ -664,3 +664,34 @@ button.hud-top:focus-visible { outline: 2px solid var(--accent); outline-offset:
   .sc-teams, .stage-card > button { grid-column: 1 / -1; }
   .sc-teams { justify-content: center; }
 }
+
+/* level grid (퍼즐 단계) */
+.level-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px; align-items: start; }
+.level-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.level-tile { width: 100%; aspect-ratio: 1; border-radius: 14px; border: 2px solid var(--line); background: var(--paper); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; box-shadow: var(--shadow); transition: transform .12s, border-color .12s; }
+.level-tile b { font: 400 26px/1 var(--f-display); }
+.level-tile .stars { font-size: 11px; }
+.level-tile:hover { transform: translateY(-2px); }
+.level-tile.on { border-color: var(--accent); background: var(--accent-soft); }
+.level-tile.cleared b { color: var(--g-best); }
+.level-tile.locked { opacity: .45; }
+.level-tile .lock { color: var(--muted); }
+/* tint by opponent AI level: the ramp is visible at a glance */
+.level-tile.ai-2 { border-bottom: 4px solid color-mix(in srgb, var(--g-inacc) 70%, var(--line)); }
+.level-tile.ai-3 { border-bottom: 4px solid color-mix(in srgb, var(--g-blund) 70%, var(--line)); }
+.level-detail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 72px); background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 14px; }
+.ld-head { display: flex; align-items: center; gap: 14px; }
+.ld-no { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font: 400 28px var(--f-display); color: var(--accent); background: var(--accent-soft); }
+.ld-title { font: 400 26px var(--f-display); color: var(--ink); letter-spacing: 0; }
+.ld-note { font-size: 14.5px; background: var(--paper-2); border-radius: 10px; padding: 10px 12px; }
+.ld-note b { margin-right: 6px; color: var(--accent); }
+.ld-teams { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ld-teams > div { display: flex; flex-direction: column; gap: 4px; }
+.ld-team { display: flex; gap: 4px; }
+.ld-mon { display: flex; flex-direction: column; align-items: center; width: 64px; text-align: center; }
+.ld-mon small { font-size: 11px; color: var(--muted); line-height: 1.2; }
+.level-detail .primary.big { align-self: stretch; }
+@media (max-width: 860px) {
+  .level-layout { grid-template-columns: minmax(0, 1fr); }
+  .level-detail { position: static; order: -1; }
+}

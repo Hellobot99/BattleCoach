@@ -153,9 +153,9 @@ export interface StoryInfo {
   no: number;
   next: string | null;
   title: string;
-  trainer: string;
-  lesson: string;
+  /** what changes at this level */
   goal: string;
+  ai: number;
   hintLimit: number | null;
 }
 
@@ -163,13 +163,13 @@ export interface StoryStage {
   id: string;
   no: number;
   title: string;
-  trainer: string;
-  lesson: string;
   goal: string;
   ai: number;
   timer: boolean;
   hintLimit: number | null;
   coaching: Coaching;
+  gap: string;
+  simWin: number;
   me: { species: string; spriteid: string }[];
   foe: { species: string; spriteid: string }[];
 }

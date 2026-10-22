@@ -130,7 +130,10 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated, onBackToRevi
         <section className="story-goal">
           <span className="sg-no">{state.story.no}</span>
           <span>
-            <b>{state.story.title}</b> <span className="muted">· {state.story.trainer} · 배울 것 {state.story.lesson}</span>
+            <b>퍼즐 {state.story.title}</b>{' '}
+            <span className="muted">
+              · 상대 AI {state.story.ai} · {state.story.hintLimit === null ? '힌트 무제한' : `힌트 ${state.story.hintLimit}번`}
+            </span>
             <br />
             <span className="small">{state.story.goal}</span>
           </span>

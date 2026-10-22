@@ -6,6 +6,9 @@ const PS = require('pokemon-showdown');
 
 export const { Battle, Dex, PRNG, Pokemon, toID } = PS;
 
+/** Puzzles: fixed 3-member teams under Champions rules; team preview only sets the order. */
+export const STORY_FORMAT = 'gen9championscustomgame@@@Picked Team Size = 3';
+
 export const FORMATS = {
   '6v6': { id: 'gen9randombattle', label: '6 대 6 (9세대 랜덤 배틀)' },
   '3v3': {

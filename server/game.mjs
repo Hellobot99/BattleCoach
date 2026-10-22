@@ -44,6 +44,7 @@ class Game {
     this.story = null;
     this.hintLimit = null;
     this.hintsUsed = 0;
+    this.aiNoise = null; // puzzles set the opponent's random-move rate per level
     let teams = null;
     let formatid;
     if (story) {
@@ -56,7 +57,8 @@ class Game {
       coaching = stage.coaching;
       timer = stage.timer;
       this.hintLimit = stage.hintLimit;
-      this.story = { id: stage.id, no: stage.no, next: stage.next, title: stage.title, trainer: stage.trainer, lesson: stage.lesson, goal: stage.goal, hintLimit: stage.hintLimit };
+      this.aiNoise = stage.noise;
+      this.story = { id: stage.id, no: stage.no, next: stage.next, title: stage.title, goal: stage.goal, ai: stage.ai, hintLimit: stage.hintLimit };
     } else {
       if (!FORMATS[format]) throw new Error('unknown format');
       formatid = FORMATS[format].id;
@@ -97,7 +99,7 @@ class Game {
       this.forcedAi = null;
     } else {
       try {
-        choice = aiChoose(b, 'p2', Math.random, { level: this.ai, noise: this.ai === 1 ? 0 : 0.04 }) || 'default';
+        choice = aiChoose(b, 'p2', Math.random, { level: this.ai, noise: this.aiNoise ?? (this.ai === 1 ? 0 : 0.04) }) || 'default';
       } catch (err) {
         console.error('[ai]', err);
       }
@@ -129,6 +131,7 @@ class Game {
       lastEval: { bestW: Math.max(...Object.values(snap.ev.actions).map(a => a.W)), ms: snap.ev.ms, rollouts: snap.ev.rollouts },
       foePreview: orig.foePreview,
       story: orig.story,
+      aiNoise: orig.aiNoise,
       hintLimit: orig.hintLimit,
       hintsUsed: orig.hintsUsed,
       retry: { fromId: orig.id, index, original: orig.reviews[index] },
@@ -276,7 +279,7 @@ class Game {
   async hint() {
     const d = this.decision;
     if (!d || d.kind === 'preview' || !d.evalPromise) return { level: 0, text: '지금은 힌트가 필요 없는 턴이에요.' };
-    if (this.hintLimit !== null && this.hintsUsed >= this.hintLimit) return { level: d.hintLevel, text: `이 스테이지의 힌트 ${this.hintLimit}번을 다 썼어요.` };
+    if (this.hintLimit !== null && this.hintsUsed >= this.hintLimit) return { level: d.hintLevel, text: `이 단계의 힌트 ${this.hintLimit}번을 다 썼어요.` };
     this.hintsUsed++;
     const ev = await d.evalPromise;
     d.hintLevel = Math.min(3, d.hintLevel + 1);

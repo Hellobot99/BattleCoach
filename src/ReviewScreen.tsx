@@ -121,7 +121,7 @@ export function ReviewScreen({ state, onAgain, onLobby, onRetry, onBackToOrigina
           </button>
         )}
         <button className="primary" onClick={onAgain}>
-          {state.story ? '이 퍼즐 다시 도전' : '같은 설정으로 다시'}
+          {state.story ? '이 단계 다시 도전' : '같은 설정으로 다시'}
         </button>
         <button className="ghost" onClick={onLobby}>
           처음으로
@@ -139,15 +139,15 @@ function StageResult({ state, onNext, onAgain }: { state: GameState; onNext?: ()
     <section className={`stage-result${stars ? ' win' : ''}`}>
       <div>
         <p className="eyebrow">
-          {st.no}. {st.title} · {st.trainer}
+          퍼즐 {st.title}
         </p>
-        <h3 className="sr-title">{stars ? '퍼즐 성공!' : '아쉽게 졌어요'}</h3>
+        <h3 className="sr-title">{stars ? `${st.title} 성공!` : '아쉽게 졌어요'}</h3>
         <p className="small muted">
           {stars
             ? stars < 3
               ? `정확도 ${stars === 1 ? '70' : '85'} 이상이면 별을 하나 더 받아요.`
-              : '별 세 개! 이 퍼즐의 원칙을 완전히 익혔어요.'
-            : `배울 것: ${st.lesson}. 아래 타임라인에서 실수한 턴을 다시 해 보고 재도전하세요.`}
+              : '별 세 개! 완벽하게 깼어요.'
+            : '아래 타임라인에서 실수한 턴을 다시 해 보고 재도전하세요.'}
         </p>
       </div>
       <span className="stars big" aria-label={`별 ${stars}개`}>
@@ -158,10 +158,10 @@ function StageResult({ state, onNext, onAgain }: { state: GameState; onNext?: ()
       <div className="sr-actions">
         {stars > 0 && onNext && (
           <button className="primary" onClick={onNext}>
-            다음 퍼즐
+            다음 단계
           </button>
         )}
-        {stars > 0 && !onNext && <span className="tag">마지막 퍼즐까지 풀었어요</span>}
+        {stars > 0 && !onNext && <span className="tag">마지막 단계까지 깼어요</span>}
         {!stars && (
           <button className="primary" onClick={onAgain}>
             다시 도전

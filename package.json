@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "ko-names": "node scripts/build-ko-names.mjs",
-    "set-stats": "node scripts/build-set-stats.mjs"
+    "set-stats": "node scripts/build-set-stats.mjs",
+    "puzzles": "node scripts/build-puzzles.mjs"
   },
   "dependencies": {
     "@pkmn/sim": "^0.10.11",
