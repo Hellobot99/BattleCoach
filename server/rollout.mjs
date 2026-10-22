@@ -36,7 +36,7 @@ function stepUntilChoices(battle, rand, maxTurn) {
  * Runs rollouts for `actions` (choice strings) using rollout numbers `seeds`.
  * Returns per-action sums so several workers' results can be added together.
  */
-export function runRollouts({ json, sideId, actions, seeds, depth }) {
+export function runRollouts({ json, worlds, sideId, actions, seeds, depth }) {
   const foeId = sideId === 'p1' ? 'p2' : 'p1';
   const out = {};
   for (const action of actions) {
@@ -57,10 +57,11 @@ export function runRollouts({ json, sideId, actions, seeds, depth }) {
   return out;
 
   function rollout(acc, action, s) {
-    const b = Battle.fromJSON(json);
+    // each rollout plays in one of the redrawn worlds (the opponent's hidden info resampled), picked by its seed
+    const b = Battle.fromJSON(worlds ? worlds[seeds.indexOf(s)] : json);
+    const rand = mulberry32(s * 2654435761);
     b.prng = new PRNG(seedFor(s));
     b.send = () => {};
-    const rand = mulberry32(s * 2654435761);
     const startTurn = b.turn;
     const foeName = b[foeId].active[0]?.name;
     const logStart = b.log.length;

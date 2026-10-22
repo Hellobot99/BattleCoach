@@ -107,10 +107,11 @@ function accOf(move) {
   return move.accuracy === true ? 1 : move.accuracy / 100;
 }
 
-export function speedOf(p) {
+/** Effective speed. `item` overrides the held item (what the player believes it holds; null = no known item). */
+export function speedOf(p, item) {
   let s = statOf(p, 'spe');
   if (p.status === 'par') s *= 0.5;
-  if (p.hasItem('choicescarf')) s *= 1.5;
+  if (item === undefined ? p.hasItem('choicescarf') : item === 'choicescarf') s *= 1.5;
   return s;
 }
 

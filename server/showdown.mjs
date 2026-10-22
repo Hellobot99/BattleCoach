@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const PS = require('pokemon-showdown');
 
-export const { Battle, Dex, PRNG, toID } = PS;
+export const { Battle, Dex, PRNG, Pokemon, toID } = PS;
 
 export const FORMATS = {
   '6v6': { id: 'gen9randombattle', label: '6 대 6 (9세대 랜덤 배틀)' },

@@ -1,8 +1,9 @@
 // One coached battle: the player is p1, the rule-based AI is p2.
 import { randomUUID } from 'node:crypto';
-import { Battle, FORMATS } from './showdown.mjs';
+import { Battle, FORMATS, toID } from './showdown.mjs';
 import { legalChoices, aiChoose, typeMultiplier, speedOf, pickTeam, matchup } from './policy.mjs';
 import { evaluate } from './evaluator.mjs';
+import { setStats } from './determinize.mjs';
 import { gradeTurn, hintFor, summarize, GRADES } from './coach.mjs';
 import { eun, eul, iga } from './korean.mjs';
 import { koMove, koItem, koAbility, koSpecies, koType } from './names.mjs';
@@ -41,6 +42,8 @@ class Game {
     this.reviews = [];
     this.decision = null;
     this.lastEval = null;
+    // 3v3: the opponent's six shown at team preview are all the player knows about its team
+    this.foePreview = format === '3v3' ? this.battle.p2.pokemon.map(p => toID(p.set.species)) : null;
     this.consumeLog();
     this.prepareDecision();
   }
@@ -88,7 +91,7 @@ class Game {
     }
     if (choices.length >= 2) {
       const json = JSON.stringify(b.toJSON());
-      d.evalPromise = evaluate(json, 'p1', choices.map(c => c.choice)).then(ev => {
+      d.evalPromise = evaluate(json, 'p1', choices.map(c => c.choice), this.hiddenInfo()).then(ev => {
         d.ev = ev;
         this.lastEval = { bestW: Math.max(...Object.values(ev.actions).map(a => a.W)), ms: ev.ms, rollouts: ev.rollouts };
         return ev;
@@ -96,6 +99,25 @@ class Game {
       d.evalPromise.catch(err => console.error('[evaluate]', err));
     }
     this.decision = d;
+  }
+
+  /** What the player knows about the opponent; the evaluator redraws everything else (S01 §4). */
+  hiddenInfo() {
+    return {
+      mod: this.format === '6v6' ? 'gen9' : 'champions',
+      pool: this.foePreview,
+      foe: this.battle.p2.pokemon.map(p => {
+        const seen = this.foeSeen.get(p.name);
+        return {
+          name: p.name,
+          revealed: !!seen,
+          moves: seen ? [...seen.moves].map(toID) : [],
+          item: seen?.item ? toID(seen.item) : null,
+          ability: seen?.ability ? toID(seen.ability) : null,
+          tera: p.terastallized || null,
+        };
+      }),
+    };
   }
 
   async waitEval() {
@@ -252,11 +274,20 @@ class Game {
     const me = b.p1.active[0];
     const foe = b.p2.active[0];
     let speed = null;
+    let speedNote = null;
     if (me && foe && !me.fainted && !foe.fainted && !preview) {
+      // only what the player can know: the opponent's item counts once it has been revealed
+      const seenItem = this.foeSeen.get(foe.name)?.item;
       const a = speedOf(me);
-      const f = speedOf(foe);
-      speed = a > f ? 'faster' : a < f ? 'slower' : 'tie';
-      if (b.field.getPseudoWeather('trickroom')) speed = speed === 'faster' ? 'slower' : speed === 'slower' ? 'faster' : 'tie';
+      const f = speedOf(foe, seenItem ? toID(seenItem) : null);
+      const tr = !!b.field.getPseudoWeather('trickroom');
+      const order = (x, y) => (x > y ? 'faster' : x < y ? 'slower' : 'tie');
+      const flip = o => (o === 'faster' ? 'slower' : o === 'slower' ? 'faster' : 'tie');
+      speed = tr ? flip(order(a, f)) : order(a, f);
+      if (!seenItem && !tr && speed === 'faster' && a < f * 1.5) {
+        const scarf = setStats(this.format === '6v6' ? 'gen9' : 'champions')[toID(foe.set.species)]?.items['Choice Scarf'];
+        if (scarf) speedNote = `상대가 구애스카프(${Math.round(scarf * 100)}%)면 상대가 먼저`;
+      }
     }
     const out = {
       id: this.id,
@@ -271,6 +302,7 @@ class Game {
       me: { team: b.p1.pokemon.map(p => this.myMon(p)) },
       foe: { team: foeTeam, total: preview ? 6 : b.p2.pokemon.length },
       speed,
+      speedNote,
       decision: d
         ? d.kind === 'preview'
           ? { kind: 'preview', size: d.size, recommend: this.recommendPicks(d.size) }

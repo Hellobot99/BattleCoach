@@ -132,7 +132,7 @@ export function Battle({ state, busy, onChoose, onHint, onAnimated }: Props) {
             {beginner && state.speed && me && foe && (
               <span className="note">
                 {state.speed === 'faster' ? `${iga(me.species)} 먼저 움직여요` : state.speed === 'slower' ? `상대 ${iga(foe.species)} 먼저 움직여요` : '스피드가 같아요'}
-                <span className="muted"> · 선공기 제외</span>
+                <span className="muted"> · 선공기 제외{state.speedNote ? ` · ${state.speedNote}` : ''}</span>
               </span>
             )}
             <Boosts label="내" b={me?.boosts} />

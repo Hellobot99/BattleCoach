@@ -113,6 +113,7 @@ export interface GameState {
   me: { team: MyMon[] };
   foe: { team: FoeMon[]; total: number };
   speed: 'faster' | 'slower' | 'tie' | null;
+  speedNote: string | null;
   decision: Decision | null;
   eval: { bestW: number; ms: number; rollouts: number } | null;
   log: LogEntry[];
