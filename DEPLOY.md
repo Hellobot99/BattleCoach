@@ -102,3 +102,16 @@ docker compose down                        # 끄기
 ```
 
 진행 중인 배틀은 서버 메모리에만 있어서, 업데이트하거나 다시 시작하면 그때 하던 배틀은 사라져요. 퍼즐 진행(별)은 각자 브라우저에 저장되니 남아요.
+
+## 5. 푸시하면 자동 배포 (GitHub Actions)
+
+`main`에 푸시하면 `.github/workflows/deploy.yml`이 ① 빌드 검사 → ② 서버 업데이트(`~/deploy.sh`: `git pull` · 이미지 다시 빌드 · 상태 확인) → ③ 사이트 응답 확인을 차례로 해요. 빌드 검사가 실패하면 서버는 건드리지 않아요. 저장소의 **Actions** 탭에서 진행을 볼 수 있고, 같은 화면의 **Run workflow**로 수동 배포도 돼요.
+
+처음 한 번 준비:
+
+1. 배포 전용 키를 만든다 (평소 접속 키와 따로): `ssh-keygen -t ed25519 -N "" -f ~/.ssh/battlecoach-deploy`
+2. 서버에 `~/deploy.sh`를 두고, 그 공개 키를 `~/.ssh/authorized_keys`에 **이 스크립트만 실행하도록** 등록한다:
+   `command="/home/ec2-user/deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA… github-actions-deploy@BattleCoach`
+3. 저장소 Secrets: `EC2_HOST`(IP), `EC2_USER`(`ec2-user`), `EC2_SSH_KEY`(배포 키의 비밀 키), `EC2_KNOWN_HOSTS`(`ssh-keygen -F <IP>`로 뽑은 서버 호스트 키 줄). 저장소 Variables: `SITE_URL`(예: `https://<IP>.sslip.io`)
+
+GitHub Actions의 IP는 정해져 있지 않아서 보안 그룹의 SSH(22)는 전체에 열려 있어야 해요. 키 없이는 들어올 수 없고, 배포 키는 업데이트 말고는 아무것도 못 해요. 배포하는 몇 분 동안 서버가 바쁘고, 진행 중이던 배틀은 사라져요.

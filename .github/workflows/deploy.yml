@@ -1,0 +1,49 @@
+# Push to main: check that the app builds, then update the EC2 server and confirm it is healthy.
+# Secrets: EC2_HOST, EC2_USER, EC2_SSH_KEY (deploy-only key), EC2_KNOWN_HOSTS. Variable: SITE_URL. See DEPLOY.md.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# one deploy at a time; a newer push waits for the running one
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          echo "${{ secrets.EC2_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Update the server
+        # the deploy key can only run ~/deploy.sh on the server (pull, rebuild, wait until healthy)
+        run: ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}
+
+      - name: Check the site
+        run: |
+          for i in $(seq 1 10); do
+            if curl -fsS "${{ vars.SITE_URL }}/api/health"; then echo; exit 0; fi
+            sleep 5
+          done
+          echo "site did not answer" >&2
+          exit 1
